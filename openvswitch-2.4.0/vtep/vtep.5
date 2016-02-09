@@ -1,0 +1,1157 @@
+'\" p
+.\" -*- nroff -*-
+.TH "vtep" 5 " DB Schema 1.3.0" "Open vSwitch 2.4.0" "Open vSwitch Manual"
+.fp 5 L CR              \\" Make fixed-width font available as \\fL.
+.de TQ
+.  br
+.  ns
+.  TP "\\$1"
+..
+.de ST
+.  PP
+.  RS -0.15in
+.  I "\\$1"
+.  RE
+..
+.SH NAME
+vtep \- hardware_vtep database schema
+.PP
+This schema specifies relations that a VTEP can use to integrate
+physical ports into logical switches maintained by a network
+virtualization controller such as NSX\fR.
+.PP
+Glossary:
+.RS
+.TP
+VTEP
+VXLAN Tunnel End Point, an entity which originates and/or terminates
+VXLAN tunnels\fR.
+.TP
+HSC
+Hardware Switch Controller\fR.
+.TP
+NVC
+Network Virtualization Controller, e\fR.g\fR. NSX\fR.
+.TP
+VRF
+Virtual Routing and Forwarding instance\fR.
+.RE
+.SH "TABLE SUMMARY"
+.PP
+The following list summarizes the purpose of each of the tables in the
+\fBhardware_vtep\fR database.  Each table is described in more detail on a later
+page.
+.IP "Table" 1in
+Purpose
+.TQ 1in
+\fBGlobal\fR
+Top-level configuration\fR.
+.TQ 1in
+\fBManager\fR
+OVSDB management connection\fR.
+.TQ 1in
+\fBPhysical_Switch\fR
+A physical switch\fR.
+.TQ 1in
+\fBTunnel\fR
+A tunnel created by a physical switch\fR.
+.TQ 1in
+\fBPhysical_Port\fR
+A port within a physical switch\fR.
+.TQ 1in
+\fBLogical_Binding_Stats\fR
+Statistics for a VLAN on a physical port bound to a logical network\fR.
+.TQ 1in
+\fBLogical_Switch\fR
+A layer\-2 domain\fR.
+.TQ 1in
+\fBUcast_Macs_Local\fR
+Unicast MACs (local)
+.TQ 1in
+\fBUcast_Macs_Remote\fR
+Unicast MACs (remote)
+.TQ 1in
+\fBMcast_Macs_Local\fR
+Multicast MACs (local)
+.TQ 1in
+\fBMcast_Macs_Remote\fR
+Multicast MACs (remote)
+.TQ 1in
+\fBLogical_Router\fR
+A logical L3 router\fR.
+.TQ 1in
+\fBArp_Sources_Local\fR
+ARP source addresses for logical routers
+.TQ 1in
+\fBArp_Sources_Remote\fR
+ARP source addresses for logical routers
+.TQ 1in
+\fBPhysical_Locator_Set\fR
+Physical_Locator_Set configuration\fR.
+.TQ 1in
+\fBPhysical_Locator\fR
+Physical_Locator configuration\fR.
+.\" check if in troff mode (TTY)
+.if t \{
+.bp
+.SH "TABLE RELATIONSHIPS"
+.PP
+The following diagram shows the relationship among tables in the
+database.  Each node represents a table.  Tables that are part of the
+``root set'' are shown with double borders.  Each edge leads from the
+table that contains it and points to the table that its value
+represents.  Edges are labeled with their column names, followed by a
+constraint on the number of allowed values: \fB?\fR for zero or one,
+\fB*\fR for zero or more, \fB+\fR for one or more.  Thick lines
+represent strong references; thin lines represent weak references.
+.RS -1in
+.ps -3
+.PS
+linethick = 1;
+linethick = 0.5;
+box at 1.634335827,2.111950686 wid 1.022393468 height 0.268655 "Mcast_Macs_Remote"
+box at 1.634335827,2.111950686 wid 0.966837912444444 height 0.213099444444444
+linethick = 1;
+box at 3.380593327,3.007431532 wid 1.00745625 height 0.268655 "Physical_Locator_Set"
+linethick = 0.5;
+box at 5.61918798,1.126846532 wid 0.761207077 height 0.268655 "Logical_Switch"
+box at 5.61918798,1.126846532 wid 0.705651521444444 height 0.213099444444444
+linethick = 0.5;
+box at 3.380593327,2.186529314 wid 0.910418064 height 0.268655 "Ucast_Macs_Local"
+box at 3.380593327,2.186529314 wid 0.854862508444444 height 0.213099444444444
+linethick = 1;
+box at 5.61918798,2.895509859 wid 0.828370827 height 0.268655 "Physical_Locator"
+linethick = 1;
+box at 3.380593327,2.604449032 wid 0.4104457359 height 0.268655 "Tunnel"
+linethick = 0.5;
+box at 0.20149125,0.5074570564 wid 0.4029825 height 0.268655 "Global"
+box at 0.20149125,0.5074570564 wid 0.347426944444444 height 0.213099444444444
+linethick = 1;
+box at 1.634335827,0.73880125 wid 0.798496391 height 0.268655 "Physical_Switch"
+linethick = 1;
+box at 1.634335827,0.33581875 wid 0.4850727218 height 0.268655 "Manager"
+linethick = 1;
+box at 3.380593327,0.2164177218 wid 0.686574718 height 0.268655 "Physical_Port"
+linethick = 0.5;
+box at 3.380593327,0.619410968 wid 0.753738468 height 0.268655 "Logical_Router"
+box at 3.380593327,0.619410968 wid 0.698182912444444 height 0.213099444444444
+linethick = 0.5;
+box at 1.634335827,1.365680827 wid 0.932823891 height 0.268655 "Mcast_Macs_Local"
+box at 1.634335827,1.365680827 wid 0.877268335444444 height 0.213099444444444
+linethick = 0.5;
+box at 3.380593327,1.783546814 wid 0.999987641 height 0.268655 "Ucast_Macs_Remote"
+box at 3.380593327,1.783546814 wid 0.944432085444444 height 0.213099444444444
+linethick = 0.5;
+box at 3.380593327,3.865623064 wid 1.022393468 height 0.268655 "Arp_Sources_Remote"
+box at 3.380593327,3.865623064 wid 0.966837912444444 height 0.213099444444444
+linethick = 0.5;
+box at 3.380593327,3.462640564 wid 0.932823891 height 0.268655 "Arp_Sources_Local"
+box at 3.380593327,3.462640564 wid 0.877268335444444 height 0.213099444444444
+linethick = 1;
+box at 5.61918798,0.1343275 wid 1.052214173 height 0.268655 "Logical_Binding_Stats"
+linethick = 1;
+spline -> from 1.797033295,2.246546841 to 1.797033295,2.246546841 to 1.922119063,2.35019394 to 2.105932814,2.491775125 to 2.2835675,2.589511814 to 2.491237815,2.703797651 to 2.736681023,2.800889568 to 2.941987174,2.872674184
+"locator_set" at 2.507464577,2.839522157
+linethick = 1;
+spline -> from 1.740562014,1.977408262 to 1.740562014,1.977408262 to 1.854095617,1.834161416 to 2.054512247,1.613810585 to 2.2835675,1.507476936 to 2.547010593,1.385131449 to 4.425715008,1.222004133 to 5.238611307,1.156183658
+"logical_switch" at 3.380593327,1.444020625
+linethick = 1;
+spline -> from 3.886631885,3.033813453 to 3.886631885,3.033813453 to 4.195101556,3.044183536 to 4.59883629,3.047031279 to 4.955180282,3.014900141 to 5.035991706,3.007646456 to 5.121692651,2.995395788 to 5.203578695,2.981479459
+"locators+" at 4.492502641,3.093239939
+linethick = 1;
+spline -> from 3.8363934,2.084977724 to 3.8363934,2.084977724 to 3.901192986,2.071061395 to 3.967174654,2.057252528 to 4.029825,2.044786936 to 4.439470144,1.963223278 to 4.591636336,2.086267268 to 4.955180282,1.880585 to 5.218032334,1.731911323 to 5.426831,1.437143057 to 5.53375569,1.263538196
+"logical_switch" at 4.492502641,2.100720907
+linethick = 1;
+spline -> from 3.836554593,2.179006974 to 3.836554593,2.179006974 to 4.159101786,2.188356168 to 4.598245249,2.232146933 to 4.955180282,2.380605686 to 5.163871486,2.467381251 to 5.362085145,2.639589106 to 5.48486048,2.760913704
+"locator" at 4.492502641,2.436539657
+linethick = 1;
+spline -> from 3.586705443,2.648615914 to 3.586705443,2.648615914 to 3.713080755,2.675481414 to 3.88045282,2.708848365 to 4.029825,2.731307923 to 4.427165745,2.791056795 to 4.883879245,2.83592218 to 5.204169736,2.863539914
+"remote" at 4.492502641,2.891748689
+linethick = 1;
+spline -> from 3.586436788,2.57425221 to 3.586436788,2.57425221 to 3.886846809,2.534867387 to 4.473052019,2.482748317 to 4.955180282,2.589511814 to 5.106218123,2.622986227 to 5.263757415,2.694932036 to 5.38653275,2.760645049
+"local" at 4.492502641,2.645499516
+linethick = 1;
+spline -> from 0.4031329468,0.539136854 to 0.4031329468,0.539136854 to 0.616240839,0.573900811 to 0.964041602,0.630640747 to 1.234469725,0.674807629
+"switches*" at 0.761207077,0.682813548
+linethick = 1;
+spline -> from 0.4048792043,0.4364622861 to 0.4048792043,0.4364622861 to 0.4480037049,0.4232766987 to 0.4937932631,0.4111173734 to 0.53731,0.4029825 to 0.827940979,0.3486550859 to 1.168917905,0.3355984529 to 1.391041859,0.3336856293
+"managers*" at 0.761207077,0.4589540827
+linethick = 1;
+spline -> from 1.829271895,0.87474068 to 1.829271895,0.87474068 to 1.930339906,0.953026747 to 2.053545089,1.056942501 to 2.14924,1.164189577 to 2.461632034,1.514193311 to 2.515309303,1.628317955 to 2.731307923,2.044786936 to 2.806746247,2.190183022 to 2.75156451,2.270457136 to 2.865635423,2.388020564 to 2.948381163,2.473291661 to 3.070028147,2.526700275 to 3.173460322,2.559153799
+"tunnels*" at 2.507464577,2.100720907
+linethick = 1;
+spline -> from 2.034631777,0.620270664 to 2.034631777,0.620270664 to 2.336922383,0.5290515453 to 2.750221235,0.4043633867 to 3.037252237,0.3177597609
+"ports*" at 2.507464577,0.593297702
+linethick = 1;
+spline -> from 3.725385154,0.2544216581 to 3.725385154,0.2544216581 to 4.119716963,0.3028171698 to 4.745092072,0.3931228615 to 4.955180282,0.4999991936 to 5.186975816,0.6179065 to 5.39298047,0.844221472 to 5.50957674,0.99026233
+"vlan_bindings value*" at 4.492502641,0.555954657
+linethick = 1;
+spline -> from 3.727158277,0.1698598103 to 3.727158277,0.1698598103 to 3.824680042,0.1584097342 to 3.931282346,0.1477333845 to 4.029825,0.1417907359 to 4.383482442,0.1204595289 to 4.782488848,0.1187293907 to 5.091280905,0.1222648905
+"vlan_stats value*" at 4.492502641,0.1977623186
+linethick = 1;
+spline -> from 3.759181953,0.6286527 to 3.759181953,0.6286527 to 4.081245567,0.644879462 to 4.557033572,0.688670227 to 4.955180282,0.805965 to 5.103692766,0.849702034 to 5.259781321,0.924656779 to 5.38277158,0.991122026
+"switch_binding value*" at 4.492502641,0.861952702
+linethick = 1;
+spline -> from 1.789994534,1.501297871 to 1.789994534,1.501297871 to 1.898584885,1.605912128 to 2.044679474,1.758024589 to 2.14924,1.910459436 to 2.226451447,2.02297215 to 2.190774063,2.086482192 to 2.2835675,2.186529314 to 2.440247096,2.355459578 to 2.582795439,2.271639218 to 2.731307923,2.447769436 to 2.840972894,2.577690994 to 2.746567527,2.684561953 to 2.865635423,2.805940282 to 2.89019049,2.830978928 to 2.918291803,2.853008638 to 2.948327432,2.872351798
+"locator_set" at 2.507464577,2.503703407
+linethick = 1;
+spline -> from 2.103622381,1.253705423 to 2.103622381,1.253705423 to 2.331495552,1.20411171 to 2.611380331,1.15145533 to 2.865635423,1.126846532 to 3.710394205,1.045229143 to 4.708125144,1.077091626 to 5.23769788,1.104118319
+"logical_switch" at 3.380593327,1.182834234
+linethick = 1;
+spline -> from 3.67305116,1.649058121 to 3.67305116,1.649058121 to 3.83531878,1.572813832 to 4.010213185,1.491357636 to 4.029825,1.485071109 to 4.428240365,1.357728639 to 4.547953033,1.40882682 to 4.955180282,1.313400564 to 5.04749014,1.291800702 to 5.146247718,1.265472512 to 5.238396383,1.239466708
+"logical_switch" at 4.492502641,1.541058811
+linethick = 1;
+spline -> from 3.880828937,1.714072631 to 3.880828937,1.714072631 to 4.27107719,1.669099784 to 4.778781409,1.63610895 to 4.955180282,1.738788891 to 5.340377821,1.963008354 to 5.5181737,2.506604881 to 5.58211359,2.760591318
+"locator" at 4.492502641,1.794776593
+linethick = 1;
+spline -> from 3.895336307,3.821509913 to 3.895336307,3.821509913 to 4.214390985,3.777343031 to 4.626454024,3.689492846 to 4.955180282,3.514920827 to 5.182193757,3.394348463 to 5.38760737,3.174051363 to 5.50635288,3.031288096
+"locator" at 4.492502641,3.846978407
+linethick = 1;
+spline -> from 3.8471396,3.407781213 to 3.8471396,3.407781213 to 4.16307788,3.363184483 to 4.589916944,3.28941182 to 4.955180282,3.179102077 to 5.084779454,3.139932178 to 5.223083048,3.082708663 to 5.339142008,3.02989109
+"locator" at 4.492502641,3.429058689
+.ps +3
+.PE
+.RE\}
+.bp
+.SH "Global TABLE"
+Top-level configuration for a hardware VTEP\fR.  There must be
+exactly one record in the \fBGlobal\fR table\fR.
+.SS "Summary:
+.TQ 3.00in
+\fBswitches\fR
+set of \fBPhysical_Switch\fRs
+.TQ .25in
+\fIDatabase Configuration:\fR
+.RS .25in
+.TQ 2.75in
+\fBmanagers\fR
+set of \fBManager\fRs
+.RE
+.SS "Details:
+.IP "\fBswitches\fR: set of \fBPhysical_Switch\fRs"
+The physical switch or switches managed by the VTEP\fR.
+.IP
+When a physical switch integrates support for this VTEP schema, which
+is expected to be the most common case, this column should point to one
+\fBPhysical_Switch\fR record that represents the switch
+itself\fR.  In another possible implementation, a server or a VM presents
+a VTEP schema front-end interface to one or more physical switches,
+presumably communicating with those physical switches over a
+proprietary protocol\fR.  In that case, this column would point to one
+\fBPhysical_Switch\fR for each physical switch, and the set
+might change over time as the front-end server comes to represent a
+differing set of switches\fR.
+.ST "Database Configuration:"
+These columns primarily configure the database server
+(\fBovsdb\-server\fR), not the hardware VTEP itself\fR.
+.IP "\fBmanagers\fR: set of \fBManager\fRs"
+Database clients to which the database server should connect or
+to which it should listen, along with options for how these
+connection should be configured\fR.  See the \fBManager\fR
+table for more information\fR.
+.bp
+.SH "Manager TABLE"
+Configuration for a database connection to an Open vSwitch Database
+(OVSDB) client\fR.
+.PP
+The database server can initiate and maintain active connections
+to remote clients\fR.  It can also listen for database connections\fR.
+.SS "Summary:
+.TQ .25in
+\fICore Features:\fR
+.RS .25in
+.TQ 2.75in
+\fBtarget\fR
+string (must be unique within table)
+.RE
+.TQ .25in
+\fIClient Failure Detection and Handling:\fR
+.RS .25in
+.TQ 2.75in
+\fBmax_backoff\fR
+optional integer, at least 1,000
+.TQ 2.75in
+\fBinactivity_probe\fR
+optional integer
+.RE
+.TQ .25in
+\fIStatus:\fR
+.RS .25in
+.TQ 2.75in
+\fBis_connected\fR
+boolean
+.TQ 2.75in
+\fBstatus : last_error\fR
+optional string
+.TQ 2.75in
+\fBstatus : state\fR
+optional string, one of \fBACTIVE\fR, \fBVOID\fR, \fBCONNECTING\fR, \fBIDLE\fR, or \fBBACKOFF\fR
+.TQ 2.75in
+\fBstatus : sec_since_connect\fR
+optional string, containing an integer, at least 0
+.TQ 2.75in
+\fBstatus : sec_since_disconnect\fR
+optional string, containing an integer, at least 0
+.TQ 2.75in
+\fBstatus : locks_held\fR
+optional string
+.TQ 2.75in
+\fBstatus : locks_waiting\fR
+optional string
+.TQ 2.75in
+\fBstatus : locks_lost\fR
+optional string
+.TQ 2.75in
+\fBstatus : n_connections\fR
+optional string, containing an integer, at least 2
+.RE
+.TQ .25in
+\fIConnection Parameters:\fR
+.RS .25in
+.TQ 2.75in
+\fBother_config : dscp\fR
+optional string, containing an integer
+.RE
+.SS "Details:
+.ST "Core Features:"
+.IP "\fBtarget\fR: string (must be unique within table)"
+Connection method for managers\fR.
+.IP
+The following connection methods are currently supported:
+.RS
+.TP
+\fBssl:\fIip\fB\fR[\fB:\fIport\fB\fR]
+The specified SSL \fIport\fR (default: 6640) on the host at
+the given \fIip\fR, which must be expressed as an IP address
+(not a DNS name)\fR.
+.IP
+SSL key and certificate configuration happens outside the
+database\fR.
+.TP
+\fBtcp:\fIip\fB\fR[\fB:\fIport\fB\fR]
+The specified TCP \fIport\fR (default: 6640) on the host at
+the given \fIip\fR, which must be expressed as an IP address
+(not a DNS name)\fR.
+.TP
+\fBpssl:\fR[\fIport\fR][\fB:\fIip\fB\fR]
+Listens for SSL connections on the specified TCP \fIport\fR
+(default: 6640)\fR.  If \fIip\fR, which must be expressed as an
+IP address (not a DNS name), is specified, then connections are
+restricted to the specified local IP address\fR.
+.TP
+\fBptcp:\fR[\fIport\fR][\fB:\fIip\fB\fR]
+Listens for connections on the specified TCP \fIport\fR
+(default: 6640)\fR.  If \fIip\fR, which must be expressed as an
+IP address (not a DNS name), is specified, then connections are
+restricted to the specified local IP address\fR.
+.RE
+.ST "Client Failure Detection and Handling:"
+.IP "\fBmax_backoff\fR: optional integer, at least 1,000"
+Maximum number of milliseconds to wait between connection attempts\fR.
+Default is implementation-specific\fR.
+.IP "\fBinactivity_probe\fR: optional integer"
+Maximum number of milliseconds of idle time on connection to the
+client before sending an inactivity probe message\fR.  If the Open
+vSwitch database does not communicate with the client for the
+specified number of seconds, it will send a probe\fR.  If a
+response is not received for the same additional amount of time,
+the database server assumes the connection has been broken
+and attempts to reconnect\fR.  Default is implementation-specific\fR.
+A value of 0 disables inactivity probes\fR.
+.ST "Status:"
+.IP "\fBis_connected\fR: boolean"
+\fBtrue\fR if currently connected to this manager,
+\fBfalse\fR otherwise\fR.
+.IP "\fBstatus : last_error\fR: optional string"
+A human-readable description of the last error on the connection
+to the manager; i\fR.e\fR. \fBstrerror(errno)\fR\fR.  This key
+will exist only if an error has occurred\fR.
+.IP "\fBstatus : state\fR: optional string, one of \fBACTIVE\fR, \fBVOID\fR, \fBCONNECTING\fR, \fBIDLE\fR, or \fBBACKOFF\fR"
+The state of the connection to the manager:
+.RS
+.TP
+\fBVOID\fR
+Connection is disabled\fR.
+.TP
+\fBBACKOFF\fR
+Attempting to reconnect at an increasing period\fR.
+.TP
+\fBCONNECTING\fR
+Attempting to connect\fR.
+.TP
+\fBACTIVE\fR
+Connected, remote host responsive\fR.
+.TP
+\fBIDLE\fR
+Connection is idle\fR.  Waiting for response to keep-alive\fR.
+.RE
+.IP
+These values may change in the future\fR.  They are provided only for
+human consumption\fR.
+.IP "\fBstatus : sec_since_connect\fR: optional string, containing an integer, at least 0"
+The amount of time since this manager last successfully connected
+to the database (in seconds)\fR. Value is empty if manager has never
+successfully connected\fR.
+.IP "\fBstatus : sec_since_disconnect\fR: optional string, containing an integer, at least 0"
+The amount of time since this manager last disconnected from the
+database (in seconds)\fR. Value is empty if manager has never
+disconnected\fR.
+.IP "\fBstatus : locks_held\fR: optional string"
+Space-separated list of the names of OVSDB locks that the connection
+holds\fR.  Omitted if the connection does not hold any locks\fR.
+.IP "\fBstatus : locks_waiting\fR: optional string"
+Space-separated list of the names of OVSDB locks that the connection is
+currently waiting to acquire\fR.  Omitted if the connection is not waiting
+for any locks\fR.
+.IP "\fBstatus : locks_lost\fR: optional string"
+Space-separated list of the names of OVSDB locks that the connection
+has had stolen by another OVSDB client\fR.  Omitted if no locks have been
+stolen from this connection\fR.
+.IP "\fBstatus : n_connections\fR: optional string, containing an integer, at least 2"
+When \fBtarget\fR specifies a connection method that
+listens for inbound connections (e\fR.g\fR. \fBptcp:\fR or
+\fBpssl:\fR) and more than one connection is actually active,
+the value is the number of active connections\fR.  Otherwise, this
+key-value pair is omitted\fR.
+.IP
+When multiple connections are active, status columns and key-value
+pairs (other than this one) report the status of one arbitrarily
+chosen connection\fR.
+.ST "Connection Parameters:"
+Additional configuration for a connection between the manager
+and the database server\fR.
+.IP "\fBother_config : dscp\fR: optional string, containing an integer"
+The Differentiated Service Code Point (DSCP) is specified using 6 bits
+in the Type of Service (TOS) field in the IP header\fR. DSCP provides a
+mechanism to classify the network traffic and provide Quality of
+Service (QoS) on IP networks\fR.
+The DSCP value specified here is used when establishing the
+connection between the manager and the database server\fR.  If no
+value is specified, a default value of 48 is chosen\fR.  Valid DSCP
+values must be in the range 0 to 63\fR.
+.bp
+.SH "Physical_Switch TABLE"
+A physical switch that implements a VTEP\fR.
+.SS "Summary:
+.TQ 3.00in
+\fBports\fR
+set of \fBPhysical_Port\fRs
+.TQ 3.00in
+\fBtunnels\fR
+set of \fBTunnel\fRs
+.TQ .25in
+\fINetwork Status:\fR
+.RS .25in
+.TQ 2.75in
+\fBmanagement_ips\fR
+set of strings
+.TQ 2.75in
+\fBtunnel_ips\fR
+set of strings
+.RE
+.TQ .25in
+\fIIdentification:\fR
+.RS .25in
+.TQ 2.75in
+\fBname\fR
+string (must be unique within table)
+.TQ 2.75in
+\fBdescription\fR
+string
+.RE
+.TQ .25in
+\fIError Notification:\fR
+.RS .25in
+.TQ 2.75in
+\fBswitch_fault_status : mac_table_exhaustion\fR
+none
+.TQ 2.75in
+\fBswitch_fault_status : tunnel_exhaustion\fR
+none
+.TQ 2.75in
+\fBswitch_fault_status : unspecified_fault\fR
+none
+.RE
+.SS "Details:
+.IP "\fBports\fR: set of \fBPhysical_Port\fRs"
+The physical ports within the switch\fR.
+.IP "\fBtunnels\fR: set of \fBTunnel\fRs"
+Tunnels created by this switch as instructed by the NVC\fR.
+.ST "Network Status:"
+.IP "\fBmanagement_ips\fR: set of strings"
+IPv4 or IPv6 addresses at which the switch may be contacted
+for management purposes\fR.
+.IP "\fBtunnel_ips\fR: set of strings"
+IPv4 or IPv6 addresses on which the switch may originate or
+terminate tunnels\fR.
+.IP
+This column is intended to allow a \fBManager\fR to
+determine the \fBPhysical_Switch\fR that terminates
+the tunnel represented by a \fBPhysical_Locator\fR\fR.
+.ST "Identification:"
+.IP "\fBname\fR: string (must be unique within table)"
+Symbolic name for the switch, such as its hostname\fR.
+.IP "\fBdescription\fR: string"
+An extended description for the switch, such as its switch login
+banner\fR.
+.ST "Error Notification:"
+An entry in this column indicates to the NVC that this switch
+has encountered a fault\fR. The switch must clear this column
+when the fault has been cleared\fR.
+.IP "\fBswitch_fault_status : mac_table_exhaustion\fR: none"
+Indicates that the switch has been unable to process MAC
+entries requested by the NVC due to lack of table resources\fR.
+.IP "\fBswitch_fault_status : tunnel_exhaustion\fR: none"
+Indicates that the switch has been unable to create tunnels
+requested by the NVC due to lack of resources\fR.
+.IP "\fBswitch_fault_status : unspecified_fault\fR: none"
+Indicates that an error has occurred in the switch but that no
+more specific information is available\fR.
+.bp
+.SH "Tunnel TABLE"
+A tunnel created by a \fBPhysical_Switch\fR\fR.
+.SS "Summary:
+.TQ 3.00in
+\fBlocal\fR
+\fBPhysical_Locator\fR
+.TQ 3.00in
+\fBremote\fR
+\fBPhysical_Locator\fR
+.TQ .25in
+\fIBidirectional Forwarding Detection (BFD):\fR
+.RS .25in
+.TQ .25in
+\fIBFD Local Configuration:\fR
+.RS .25in
+.TQ 2.50in
+\fBbfd_config_local : bfd_dst_mac\fR
+optional string
+.TQ 2.50in
+\fBbfd_config_local : bfd_dst_ip\fR
+optional string
+.RE
+.TQ .25in
+\fIBFD Remote Configuration:\fR
+.RS .25in
+.TQ 2.50in
+\fBbfd_config_remote : bfd_dst_mac\fR
+optional string
+.TQ 2.50in
+\fBbfd_config_remote : bfd_dst_ip\fR
+optional string
+.RE
+.TQ .25in
+\fIBFD Parameters:\fR
+.RS .25in
+.TQ 2.50in
+\fBbfd_params : enable\fR
+optional string, either \fBtrue\fR or \fBfalse\fR
+.TQ 2.50in
+\fBbfd_params : min_rx\fR
+optional string, containing an integer, at least 1
+.TQ 2.50in
+\fBbfd_params : min_tx\fR
+optional string, containing an integer, at least 1
+.TQ 2.50in
+\fBbfd_params : decay_min_rx\fR
+optional string, containing an integer
+.TQ 2.50in
+\fBbfd_params : forwarding_if_rx\fR
+optional string, either \fBtrue\fR or \fBfalse\fR
+.TQ 2.50in
+\fBbfd_params : cpath_down\fR
+optional string, either \fBtrue\fR or \fBfalse\fR
+.TQ 2.50in
+\fBbfd_params : check_tnl_key\fR
+optional string, either \fBtrue\fR or \fBfalse\fR
+.RE
+.TQ .25in
+\fIBFD Status:\fR
+.RS .25in
+.TQ 2.50in
+\fBbfd_status : enabled\fR
+optional string, either \fBtrue\fR or \fBfalse\fR
+.TQ 2.50in
+\fBbfd_status : state\fR
+optional string, one of \fBdown\fR, \fBinit\fR, \fBup\fR, or \fBadmin_down\fR
+.TQ 2.50in
+\fBbfd_status : forwarding\fR
+optional string, either \fBtrue\fR or \fBfalse\fR
+.TQ 2.50in
+\fBbfd_status : diagnostic\fR
+optional string
+.TQ 2.50in
+\fBbfd_status : remote_state\fR
+optional string, one of \fBdown\fR, \fBinit\fR, \fBup\fR, or \fBadmin_down\fR
+.TQ 2.50in
+\fBbfd_status : remote_diagnostic\fR
+optional string
+.TQ 2.50in
+\fBbfd_status : info\fR
+optional string
+.RE
+.RE
+.SS "Details:
+.IP "\fBlocal\fR: \fBPhysical_Locator\fR"
+Tunnel end-point local to the physical switch\fR.
+.IP "\fBremote\fR: \fBPhysical_Locator\fR"
+Tunnel end-point remote to the physical switch\fR.
+.ST "Bidirectional Forwarding Detection (BFD):"
+BFD, defined in RFC 5880, allows point to point detection of
+connectivity failures by occasional transmission of BFD control
+messages\fR. VTEPs are expected to implement BFD\fR.
+.PP
+BFD operates by regularly transmitting BFD control messages at a
+rate negotiated independently in each direction\fR.  Each endpoint
+specifies the rate at which it expects to receive control messages,
+and the rate at which it\(cqs willing to transmit them\fR.  An endpoint
+which fails to receive BFD control messages for a period of three
+times the expected reception rate will signal a connectivity
+fault\fR.  In the case of a unidirectional connectivity issue, the
+system not receiving BFD control messages will signal the problem
+to its peer in the messages it transmits\fR.
+.PP
+A hardware VTEP is expected to use BFD to determine reachability of
+devices at the end of the tunnels with which it exchanges data\fR. This
+can enable the VTEP to choose a functioning service node among a set of
+service nodes providing high availability\fR. It also enables the NVC to
+report the health status of tunnels\fR.
+.PP
+In most cases the BFD peer of a hardware VTEP will be an Open vSwitch
+instance\fR. The Open vSwitch implementation of BFD aims to comply
+faithfully with the requirements put forth in RFC 5880\fR.  Open vSwitch
+does not implement the optional Authentication or ``Echo Mode\(cq\(cq
+features\fR.
+.ST "BFD Local Configuration:"
+The HSC writes the key-value pairs in the
+\fBbfd_config_local\fR column to specifiy the local
+configurations to be used for BFD sessions on this tunnel\fR.
+.IP "\fBbfd_config_local : bfd_dst_mac\fR: optional string"
+Set to an Ethernet address in the form
+\fIxx\fR:\fIxx\fR:\fIxx\fR:\fIxx\fR:\fIxx\fR:\fIxx\fR
+to set the MAC expected as destination for received BFD packets\fR.
+The default is \fB00:23:20:00:00:01\fR\fR.
+.IP "\fBbfd_config_local : bfd_dst_ip\fR: optional string"
+Set to an IPv4 address to set the IP address that is expected as destination
+for received BFD packets\fR.  The default is \fB169\fB.254\fB.1\fB.0\fR\fR.
+.ST "BFD Remote Configuration:"
+The \fBbfd_config_remote\fR column is the remote
+counterpart of the \fBbfd_config_local\fR column\fR.
+The NVC writes the key-value pairs in this column\fR.
+.IP "\fBbfd_config_remote : bfd_dst_mac\fR: optional string"
+Set to an Ethernet address in the form
+\fIxx\fR:\fIxx\fR:\fIxx\fR:\fIxx\fR:\fIxx\fR:\fIxx\fR
+to set the destination MAC to be used for transmitted BFD packets\fR.
+The default is \fB00:23:20:00:00:01\fR\fR.
+.IP "\fBbfd_config_remote : bfd_dst_ip\fR: optional string"
+Set to an IPv4 address to set the IP address used as destination
+for transmitted BFD packets\fR.  The default is \fB169\fB.254\fB.1\fB.1\fR\fR.
+.ST "BFD Parameters:"
+The NVC sets up key-value pairs in the \fBbfd_params\fR
+column to enable and configure BFD\fR.
+.IP "\fBbfd_params : enable\fR: optional string, either \fBtrue\fR or \fBfalse\fR"
+True to enable BFD on this tunnel\fR.
+The default is False\fR.
+.IP "\fBbfd_params : min_rx\fR: optional string, containing an integer, at least 1"
+The shortest interval, in milliseconds, at which this BFD session
+offers to receive BFD control messages\fR.  The remote endpoint may
+choose to send messages at a slower rate\fR.  Defaults to
+\fB1000\fR\fR.
+.IP "\fBbfd_params : min_tx\fR: optional string, containing an integer, at least 1"
+The shortest interval, in milliseconds, at which this BFD session is
+willing to transmit BFD control messages\fR.  Messages will actually be
+transmitted at a slower rate if the remote endpoint is not willing to
+receive as quickly as specified\fR.  Defaults to \fB100\fR\fR.
+.IP "\fBbfd_params : decay_min_rx\fR: optional string, containing an integer"
+An alternate receive interval, in milliseconds, that must be greater
+than or equal to \fBbfd:min_rx\fR\fR.  The
+implementation switches from \fBbfd:min_rx\fR to \fBbfd:decay_min_rx\fR when there is no obvious incoming
+data traffic at the interface, to reduce the CPU and bandwidth cost
+of monitoring an idle interface\fR.  This feature may be disabled by
+setting a value of 0\fR.  This feature is reset whenever \fBbfd:decay_min_rx\fR or \fBbfd:min_rx\fR
+changes\fR.
+.IP "\fBbfd_params : forwarding_if_rx\fR: optional string, either \fBtrue\fR or \fBfalse\fR"
+True to consider the interface capable of packet I/O as long as it
+continues to receive any packets (not just BFD packets)\fR.  This
+prevents link congestion that causes consecutive BFD control packets
+to be lost from marking the interface down\fR.
+.IP "\fBbfd_params : cpath_down\fR: optional string, either \fBtrue\fR or \fBfalse\fR"
+Set to true to notify the remote endpoint that traffic should not be
+forwarded to this system for some reason other than a connectivty
+failure on the interface being monitored\fR.  The typical underlying
+reason is ``concatenated path down,\(cq\(cq that is, that connectivity
+beyond the local system is down\fR.  Defaults to false\fR.
+.IP "\fBbfd_params : check_tnl_key\fR: optional string, either \fBtrue\fR or \fBfalse\fR"
+Set to true to make BFD accept only control messages with a tunnel
+key of zero\fR.  By default, BFD accepts control messages with any
+tunnel key\fR.
+.ST "BFD Status:"
+The VTEP sets key-value pairs in the \fBbfd_status\fR
+column to report the status of BFD on this tunnel\fR.  When BFD is
+not enabled, with \fBbfd_params:enable\fR, the
+HSC clears all key-value pairs from \fBbfd_status\fR\fR.
+.IP "\fBbfd_status : enabled\fR: optional string, either \fBtrue\fR or \fBfalse\fR"
+Set to true if the BFD session has been successfully
+enabled\fR. Set to false if the VTEP cannot support BFD or has
+insufficient resources to enable BFD on this tunnel\fR. The NVC
+will disable the BFD monitoring on the other side of the tunnel
+once this value is set to false\fR.
+.IP "\fBbfd_status : state\fR: optional string, one of \fBdown\fR, \fBinit\fR, \fBup\fR, or \fBadmin_down\fR"
+Reports the state of the BFD session\fR.  The BFD session is fully
+healthy and negotiated if \fBUP\fR\fR.
+.IP "\fBbfd_status : forwarding\fR: optional string, either \fBtrue\fR or \fBfalse\fR"
+Reports whether the BFD session believes this tunnel
+may be used to forward traffic\fR.  Typically this means the local session
+is signaling \fBUP\fR, and the remote system isn\(cqt signaling a
+problem such as concatenated path down\fR.
+.IP "\fBbfd_status : diagnostic\fR: optional string"
+In case of a problem, set to an error message that reports what the
+local BFD session thinks is wrong\fR.  The error messages are defined
+in section 4\fR.1 of [RFC 5880]\fR.
+.IP "\fBbfd_status : remote_state\fR: optional string, one of \fBdown\fR, \fBinit\fR, \fBup\fR, or \fBadmin_down\fR"
+Reports the state of the remote endpoint\(cqs BFD session\fR.
+.IP "\fBbfd_status : remote_diagnostic\fR: optional string"
+In case of a problem, set to an error message that reports what the
+remote endpoint\(cqs BFD session thinks is wrong\fR.  The error messages
+are defined in section 4\fR.1 of [RFC 5880]\fR.
+.IP "\fBbfd_status : info\fR: optional string"
+A short message providing further information about the BFD status
+(possibly including reasons why BFD could not be enabled)\fR.
+.bp
+.SH "Physical_Port TABLE"
+A port within a \fBPhysical_Switch\fR\fR.
+.SS "Summary:
+.TQ 3.00in
+\fBvlan_bindings\fR
+map of integer-\fBLogical_Switch\fR pairs, key in range 0 to 4,095
+.TQ 3.00in
+\fBvlan_stats\fR
+map of integer-\fBLogical_Binding_Stats\fR pairs, key in range 0 to 4,095
+.TQ .25in
+\fIIdentification:\fR
+.RS .25in
+.TQ 2.75in
+\fBname\fR
+string
+.TQ 2.75in
+\fBdescription\fR
+string
+.RE
+.TQ .25in
+\fIError Notification:\fR
+.RS .25in
+.TQ 2.75in
+\fBport_fault_status : invalid_vlan_map\fR
+none
+.TQ 2.75in
+\fBport_fault_status : unspecified_fault\fR
+none
+.RE
+.SS "Details:
+.IP "\fBvlan_bindings\fR: map of integer-\fBLogical_Switch\fR pairs, key in range 0 to 4,095"
+Identifies how VLANs on the physical port are bound to logical switches\fR.
+If, for example, the map contains a (VLAN, logical switch) pair, a packet
+that arrives on the port in the VLAN is considered to belong to the
+paired logical switch\fR.
+.IP "\fBvlan_stats\fR: map of integer-\fBLogical_Binding_Stats\fR pairs, key in range 0 to 4,095"
+Statistics for VLANs bound to logical switches on the physical port\fR.  An
+implementation that fully supports such statistics would populate this
+column with a mapping for every VLAN that is bound in \fBvlan_bindings\fR\fR.  An implementation that does not support such
+statistics or only partially supports them would not populate this column
+or partially populate it, respectively\fR.
+.ST "Identification:"
+.IP "\fBname\fR: string"
+Symbolic name for the port\fR.  The name ought to be unique within a given
+\fBPhysical_Switch\fR, but the database is not capable of
+enforcing this\fR.
+.IP "\fBdescription\fR: string"
+An extended description for the port\fR.
+.ST "Error Notification:"
+An entry in this column indicates to the NVC that the physical port has
+encountered a fault\fR. The switch must clear this column when the errror
+has been cleared\fR.
+.IP "\fBport_fault_status : invalid_vlan_map\fR: none"
+Indicates that a VLAN-to-logical-switch mapping requested by
+the controller could not be instantiated by the switch
+because of a conflict with local configuration\fR.
+.IP "\fBport_fault_status : unspecified_fault\fR: none"
+Indicates that an error has occurred on the port but that no
+more specific information is available\fR.
+.bp
+.SH "Logical_Binding_Stats TABLE"
+Reports statistics for the \fBLogical_Switch\fR with which a VLAN
+on a \fBPhysical_Port\fR is associated\fR.
+.SS "Summary:
+.TQ .25in
+\fIStatistics:\fR
+.RS .25in
+.TQ 2.75in
+\fBpackets_from_local\fR
+integer
+.TQ 2.75in
+\fBbytes_from_local\fR
+integer
+.TQ 2.75in
+\fBpackets_to_local\fR
+integer
+.TQ 2.75in
+\fBbytes_to_local\fR
+integer
+.RE
+.SS "Details:
+.ST "Statistics:"
+These statistics count only packets to which the binding applies\fR.
+.IP "\fBpackets_from_local\fR: integer"
+Number of packets sent by the \fBPhysical_Switch\fR\fR.
+.IP "\fBbytes_from_local\fR: integer"
+Number of bytes in packets sent by the \fBPhysical_Switch\fR\fR.
+.IP "\fBpackets_to_local\fR: integer"
+Number of packets received by the \fBPhysical_Switch\fR\fR.
+.IP "\fBbytes_to_local\fR: integer"
+Number of bytes in packets received by the \fBPhysical_Switch\fR\fR.
+.bp
+.SH "Logical_Switch TABLE"
+A logical Ethernet switch, whose implementation may span physical and
+virtual media, possibly crossing L3 domains via tunnels; a logical layer\-2
+domain; an Ethernet broadcast domain\fR.
+.SS "Summary:
+.TQ .25in
+\fIPer Logical-Switch Tunnel Key:\fR
+.RS .25in
+.TQ 2.75in
+\fBtunnel_key\fR
+optional integer
+.RE
+.TQ .25in
+\fIIdentification:\fR
+.RS .25in
+.TQ 2.75in
+\fBname\fR
+string (must be unique within table)
+.TQ 2.75in
+\fBdescription\fR
+string
+.RE
+.SS "Details:
+.ST "Per Logical-Switch Tunnel Key:"
+Tunnel protocols tend to have a field that allows the tunnel
+to be partitioned into sub-tunnels: VXLAN has a VNI, GRE and
+STT have a key, CAPWAP has a WSI, and so on\fR.  We call these
+generically ``tunnel keys\fR.\(cq\(cq  Given that one needs to use a
+tunnel key at all, there are at least two reasonable ways to
+assign their values:
+.RS
+.IP \(bu
+Per \fBLogical_Switch\fR+\fBPhysical_Locator\fR
+pair\fR.  That is, each logical switch may be assigned a different
+tunnel key on every \fBPhysical_Locator\fR\fR.  This model is
+especially flexible\fR.
+.IP
+In this model, \fBPhysical_Locator\fR carries the tunnel
+key\fR.  Therefore, one \fBPhysical_Locator\fR record will
+exist for each logical switch carried at a given IP destination\fR.
+.IP \(bu
+Per \fBLogical_Switch\fR\fR.  That is, every tunnel
+associated with a particular logical switch carries the same tunnel
+key, regardless of the \fBPhysical_Locator\fR to which the
+tunnel is addressed\fR.  This model may ease switch implementation
+because it imposes fewer requirements on the hardware datapath\fR.
+.IP
+In this model, \fBLogical_Switch\fR carries the tunnel
+key\fR.  Therefore, one \fBPhysical_Locator\fR record will
+exist for each IP destination\fR.
+.RE
+.IP "\fBtunnel_key\fR: optional integer"
+This column is used only in the tunnel key per \fBLogical_Switch\fR model (see above), because only in that
+model is there a tunnel key associated with a logical switch\fR.
+.IP
+For \fBvxlan_over_ipv4\fR encapsulation, this column
+is the VXLAN VNI that identifies a logical switch\fR.  It must
+be in the range 0 to 16,777,215\fR.
+.ST "Identification:"
+.IP "\fBname\fR: string (must be unique within table)"
+Symbolic name for the logical switch\fR.
+.IP "\fBdescription\fR: string"
+An extended description for the logical switch, such as its switch
+login banner\fR.
+.bp
+.SH "Ucast_Macs_Local TABLE"
+Mapping of unicast MAC addresses to tunnels (physical
+locators)\fR. This table is written by the HSC, so it contains the
+MAC addresses that have been learned on physical ports by a
+VTEP\fR.
+.SS "Summary:
+.TQ 3.00in
+\fBMAC\fR
+string
+.TQ 3.00in
+\fBlogical_switch\fR
+\fBLogical_Switch\fR
+.TQ 3.00in
+\fBlocator\fR
+\fBPhysical_Locator\fR
+.TQ 3.00in
+\fBipaddr\fR
+string
+.SS "Details:
+.IP "\fBMAC\fR: string"
+A MAC address that has been learned by the VTEP\fR.
+.IP "\fBlogical_switch\fR: \fBLogical_Switch\fR"
+The Logical switch to which this mapping applies\fR.
+.IP "\fBlocator\fR: \fBPhysical_Locator\fR"
+The physical locator to be used to reach this MAC address\fR. In
+this table, the physical locator will be one of the tunnel IP
+addresses of the appropriate VTEP\fR.
+.IP "\fBipaddr\fR: string"
+The IP address to which this MAC corresponds\fR. Optional field for
+the purpose of ARP supression\fR.
+.bp
+.SH "Ucast_Macs_Remote TABLE"
+Mapping of unicast MAC addresses to tunnels (physical
+locators)\fR. This table is written by the NVC, so it contains the
+MAC addresses that the NVC has learned\fR. These include VM MAC
+addresses, in which case the physical locators will be
+hypervisor IP addresses\fR. The NVC will also report MACs that it
+has learned from other HSCs in the network, in which case the
+physical locators will be tunnel IP addresses of the
+corresponding VTEPs\fR.
+.SS "Summary:
+.TQ 3.00in
+\fBMAC\fR
+string
+.TQ 3.00in
+\fBlogical_switch\fR
+\fBLogical_Switch\fR
+.TQ 3.00in
+\fBlocator\fR
+\fBPhysical_Locator\fR
+.TQ 3.00in
+\fBipaddr\fR
+string
+.SS "Details:
+.IP "\fBMAC\fR: string"
+A MAC address that has been learned by the NVC\fR.
+.IP "\fBlogical_switch\fR: \fBLogical_Switch\fR"
+The Logical switch to which this mapping applies\fR.
+.IP "\fBlocator\fR: \fBPhysical_Locator\fR"
+The physical locator to be used to reach this MAC address\fR. In
+this table, the physical locator will be either a hypervisor IP
+address or a tunnel IP addresses of another VTEP\fR.
+.IP "\fBipaddr\fR: string"
+The IP address to which this MAC corresponds\fR. Optional field for
+the purpose of ARP supression\fR.
+.bp
+.SH "Mcast_Macs_Local TABLE"
+Mapping of multicast MAC addresses to tunnels (physical
+locators)\fR. This table is written by the HSC, so it contains the
+MAC addresses that have been learned on physical ports by a
+VTEP\fR. These may be learned by IGMP snooping, for example\fR. This
+table also specifies how to handle unknown unicast and broadcast packets\fR.
+.SS "Summary:
+.TQ 3.00in
+\fBMAC\fR
+string
+.TQ 3.00in
+\fBlogical_switch\fR
+\fBLogical_Switch\fR
+.TQ 3.00in
+\fBlocator_set\fR
+\fBPhysical_Locator_Set\fR
+.TQ 3.00in
+\fBipaddr\fR
+string
+.SS "Details:
+.IP "\fBMAC\fR: string"
+A MAC address that has been learned by the VTEP\fR.
+.IP
+The keyword \fBunknown\-dst\fR is used as a special
+``Ethernet address\(cq\(cq that indicates the locations to which
+packets in a logical switch whose destination addresses do not
+otherwise appear in \fBUcast_Macs_Local\fR (for
+unicast addresses) or \fBMcast_Macs_Local\fR (for
+multicast addresses) should be sent\fR.
+.IP "\fBlogical_switch\fR: \fBLogical_Switch\fR"
+The Logical switch to which this mapping applies\fR.
+.IP "\fBlocator_set\fR: \fBPhysical_Locator_Set\fR"
+The physical locator set to be used to reach this MAC address\fR. In
+this table, the physical locator set will be contain one or more tunnel IP
+addresses of the appropriate VTEP(s)\fR.
+.IP "\fBipaddr\fR: string"
+The IP address to which this MAC corresponds\fR. Optional field for
+the purpose of ARP supression\fR.
+.bp
+.SH "Mcast_Macs_Remote TABLE"
+Mapping of multicast MAC addresses to tunnels (physical
+locators)\fR. This table is written by the NVC, so it contains the
+MAC addresses that the NVC has learned\fR. This
+table also specifies how to handle unknown unicast and broadcast
+packets\fR.
+.PP
+Multicast packet replication may be handled by a service node,
+in which case the physical locators will be IP addresses of
+service nodes\fR. If the VTEP supports replication onto multiple
+tunnels, then this may be used to replicate directly onto
+VTEP-hyperisor tunnels\fR.
+.SS "Summary:
+.TQ 3.00in
+\fBMAC\fR
+string
+.TQ 3.00in
+\fBlogical_switch\fR
+\fBLogical_Switch\fR
+.TQ 3.00in
+\fBlocator_set\fR
+\fBPhysical_Locator_Set\fR
+.TQ 3.00in
+\fBipaddr\fR
+string
+.SS "Details:
+.IP "\fBMAC\fR: string"
+A MAC address that has been learned by the NVC\fR.
+.IP
+The keyword \fBunknown\-dst\fR is used as a special
+``Ethernet address\(cq\(cq that indicates the locations to which
+packets in a logical switch whose destination addresses do not
+otherwise appear in \fBUcast_Macs_Remote\fR (for
+unicast addresses) or \fBMcast_Macs_Remote\fR (for
+multicast addresses) should be sent\fR.
+.IP "\fBlogical_switch\fR: \fBLogical_Switch\fR"
+The Logical switch to which this mapping applies\fR.
+.IP "\fBlocator_set\fR: \fBPhysical_Locator_Set\fR"
+The physical locator set to be used to reach this MAC address\fR. In
+this table, the physical locator set will be either a service node IP
+address or a set of tunnel IP addresses of hypervisors (and
+potentially other VTEPs)\fR.
+.IP "\fBipaddr\fR: string"
+The IP address to which this MAC corresponds\fR. Optional field for
+the purpose of ARP supression\fR.
+.bp
+.SH "Logical_Router TABLE"
+A logical router, or VRF\fR. A logical router may be connected to one or more
+logical switches\fR. Subnet addresses and interface addresses may be configured on the
+interfaces\fR.
+.SS "Summary:
+.TQ 3.00in
+\fBswitch_binding\fR
+map of string-\fBLogical_Switch\fR pairs
+.TQ 3.00in
+\fBstatic_routes\fR
+map of string-string pairs
+.TQ .25in
+\fIIdentification:\fR
+.RS .25in
+.TQ 2.75in
+\fBname\fR
+string (must be unique within table)
+.TQ 2.75in
+\fBdescription\fR
+string
+.RE
+.SS "Details:
+.IP "\fBswitch_binding\fR: map of string-\fBLogical_Switch\fR pairs"
+Maps from an IPv4 or IPv6 address prefix in CIDR notation to a
+logical switch\fR. Multiple prefixes may map to the same switch\fR. By
+writing a 32-bit (or 128-bit for v6) address with a /N prefix
+length, both the router\(cqs interface address and the subnet
+prefix can be configured\fR. For example, 192\fR.68\fR.1\fR.1/24 creates a
+/24 subnet for the logical switch attached to the interface and
+assigns the address 192\fR.68\fR.1\fR.1 to the router interface\fR.
+.IP "\fBstatic_routes\fR: map of string-string pairs"
+One or more static routes, mapping IP prefixes to next hop IP addresses\fR.
+.ST "Identification:"
+.IP "\fBname\fR: string (must be unique within table)"
+Symbolic name for the logical router\fR.
+.IP "\fBdescription\fR: string"
+An extended description for the logical router\fR.
+.bp
+.SH "Arp_Sources_Local TABLE"
+MAC address to be used when a VTEP issues ARP requests on behalf
+of a logical router\fR.
+.PP
+A distributed logical router is implemented by a set of VTEPs
+(both hardware VTEPs and vswitches)\fR. In order for a given VTEP
+to populate the local ARP cache for a logical router, it issues
+ARP requests with a source MAC address that is unique to the VTEP\fR. A
+single per-VTEP MAC can be re-used across all logical
+networks\fR. This table contains the MACs that are used by the
+VTEPs of a given HSC\fR. The table provides the mapping from MAC to
+physical locator for each VTEP so that replies to the ARP
+requests can be sent back to the correct VTEP using the
+appropriate physical locator\fR.
+.SS "Summary:
+.TQ 3.00in
+\fBsrc_mac\fR
+string
+.TQ 3.00in
+\fBlocator\fR
+\fBPhysical_Locator\fR
+.SS "Details:
+.IP "\fBsrc_mac\fR: string"
+The source MAC to be used by a given VTEP\fR.
+.IP "\fBlocator\fR: \fBPhysical_Locator\fR"
+The \fBPhysical_Locator\fR to use for replies to ARP
+requests from this MAC address\fR.
+.bp
+.SH "Arp_Sources_Remote TABLE"
+MAC address to be used when a remote VTEP issues ARP requests on behalf
+of a logical router\fR.
+.PP
+This table is the remote counterpart of \fBArp_sources_local\fR\fR. The NVC writes this table to notify
+the HSC of the MACs that will be used by remote VTEPs when they
+issue ARP requests on behalf of a distributed logical router\fR.
+.SS "Summary:
+.TQ 3.00in
+\fBsrc_mac\fR
+string
+.TQ 3.00in
+\fBlocator\fR
+\fBPhysical_Locator\fR
+.SS "Details:
+.IP "\fBsrc_mac\fR: string"
+The source MAC to be used by a given VTEP\fR.
+.IP "\fBlocator\fR: \fBPhysical_Locator\fR"
+The \fBPhysical_Locator\fR to use for replies to ARP
+requests from this MAC address\fR.
+.bp
+.SH "Physical_Locator_Set TABLE"
+A set of one or more \fBPhysical_Locator\fRs\fR.
+.PP
+This table exists only because OVSDB does not have a way to
+express the type ``map from string to one or more \fBPhysical_Locator\fR records\fR.\(cq\(cq
+.SS "Summary:
+.TQ 3.00in
+\fBlocators\fR
+immutable set of 1 or more \fBPhysical_Locator\fRs
+.SS "Details:
+.IP "\fBlocators\fR: immutable set of 1 or more \fBPhysical_Locator\fRs"
+.bp
+.SH "Physical_Locator TABLE"
+Identifies an endpoint to which logical switch traffic may be
+encapsulated and forwarded\fR.
+.PP
+For the \fBvxlan_over_ipv4\fR encapsulation, the only
+encapsulation defined so far, all endpoints associated with a given \fBLogical_Switch\fR must use a common tunnel key, which is carried
+in the \fBtunnel_key\fR column of \fBLogical_Switch\fR\fR.
+.PP
+For some encapsulations yet to be defined, we expect \fBPhysical_Locator\fR to identify both an endpoint and a tunnel key\fR.
+When the first such encapsulation is defined, we expect to add a
+``tunnel_key\(cq\(cq column to \fBPhysical_Locator\fR to allow the
+tunnel key to be defined\fR.
+.PP
+See the ``Per Logical-Switch Tunnel Key\(cq\(cq section in the \fBLogical_Switch\fR table for further discussion of the model\fR.
+.SS "Summary:
+.TQ 3.00in
+\fBencapsulation_type\fR
+immutable string, must be \fBvxlan_over_ipv4\fR
+.TQ 3.00in
+\fBdst_ip\fR
+immutable string
+.SS "Details:
+.IP "\fBencapsulation_type\fR: immutable string, must be \fBvxlan_over_ipv4\fR"
+The type of tunneling encapsulation\fR.
+.IP "\fBdst_ip\fR: immutable string"
+For \fBvxlan_over_ipv4\fR encapsulation, the IPv4 address of the
+VXLAN tunnel endpoint\fR.
+.IP
+We expect that this column could be used for IPv4 or IPv6 addresses in
+encapsulations to be introduced later\fR.
