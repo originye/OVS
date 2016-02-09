@@ -7,7 +7,7 @@ values2 = ['(1,ee:13)', 'ff:12', '10.110.110.10', '112.112.11.11', '123.123.12.1
 #trie = marisa_trie.Trie([u'ethernet src', u'ethernet dst', u'ip src', u'ip dst'])
 #
 values = ['(1,ee:12)', 'ff:22', '10.10.10.10', '11.11.11.11', '12.12.12.12']
-keys = keys + keys2
+keys = keys
 values = values + values2
 #values = [(1, 2), (2, 1), (3, 3), (2, 1)]
 #fmt = '@Hf'
@@ -20,7 +20,8 @@ values = [(1, 2), (2, 1), (3, 3), (2, 1)]
 fmt = '@Hf'
 trie = marisa_trie.RecordTrie(fmt, zip(keys, values))
 
-
+####################################################################
+# Ideas about how to store and search flow fields of installed policies in hash trie
 keys = [u'ee:12', u'ff:aa'] # store all the ethernet src value
 values_id = ['222', '3333'] # store all its policy id
 ethernet_src_trie = marisa_trie.BytesTrie(zip(keys, values))
