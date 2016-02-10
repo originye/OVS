@@ -6,16 +6,16 @@ import time
 seq = []
 last_pull = []
 s = "s1"
-Q = []
+Q = {}
 PID = [1,2,3,4,5,6,7,8,9,10]
-
+list=['n_bytes', 'dl_vlan', 'metadata']
 
 def policy_update(controller_id):
     while controller_failure_detection(): # return True if no controller failure
         while True:
             try:
                 flow = pull(s)
-                if flow != " "
+                if flow != " ":
                     break
             except NameError:
                 print "SwitchFailure"
@@ -38,6 +38,7 @@ def free_pid(pid):
 
 def policy_store(flow):
     #TODO : store the installed policy in marisa_trie
+
     return True
 
 
@@ -50,6 +51,8 @@ def getfromQ(pid):
     #TODO: get the policy with pid from Q
     try:
         policy = Q[pid]
+    except KeyError:
+        print "No such pid"
     return policy
 
 
@@ -69,18 +72,49 @@ def remove(flow):
     #TODO: remove flow from switch s
     return True
 
+
+# pull a policy from switch return flow_dict={'metadata':'0x1123123','ip_src': '11.111.11.11'....}
 def pull(switch):
-    #TODO get flow value
-    flow = {'cid':0, 'pid': 0, 'policy': " "}
-    if flow == None:
-        flow = " "
-        raise NameError('SwitchFailure')
-    return flow
+    #flow = {'cid':0, 'pid': 0, 'policy': " "}
+    try:
+        cmdline_args = ["ovs-ofctl"] + ["pull"] + switch + ["-O", "OpenFlow14"]
+        #logging.debug(str( cmdline_args))
+        p = subprocess.Popen(cmdline_args, stdout=subprocess.PIPE, stderr=subprocess.PIPE)
+        p.wait()
+        res = [p.returncode, p.communicate()]
+        #logging.debug(str( res))
+        res = res[1][0]
+        res = res[:-2]
+        print res
+        flow_dict = {}
+        items = res.split(",")
+        for item in items:
+            item = item.strip()
+            print item
+            if item == '':
+                continue
+            key, value = item.split("=")
+            if key in list:
+                if key == 'dl_vlan':
+                    value, value2 = value.split(" ")
+                flow_dict[key] = value
+        return flow_dict
+        #return subprocess.check_output(cmdline_args, stderr=subprocess.STDOUT)
+    except subprocess.CalledProcessError, e:
+        logging.warning(str( e))
+        #logging.warning(subprocess.Popen.communicate())
+        return None
+
+    # if flow == None:
+    #     flow = " "
+    #     raise NameError('SwitchFailure')
+    # return flow
+
 
 # ovs-ofctl push switch id content
 def push(flow):
     try:
-        cmdline_args = ["ovs-ofctl"] + ["push"] + ["-O", "OpenFlow14"]
+        cmdline_args = ["ovs-ofctl"] + ["push"] + flow + ["-O", "OpenFlow14"]
         #logging.debug(str( cmdline_args))
         p = subprocess.Popen(cmdline_args, stdout=subprocess.PIPE, stderr=subprocess.PIPE)
         p.wait()

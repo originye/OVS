@@ -397,6 +397,7 @@ usage(void)
     	   "  check-lock switch           print lock information on switch\n"
     	   "  unlock switch controller_id unlock switch from controller_id\n",
 		   "  push switch id content      push content to the switch with unique id\n",
+		   "  pull switch                 pull policy from the switch\n",
            program_name, program_name);
     vconn_usage(true, false, false);
     daemon_usage();
@@ -1440,21 +1441,30 @@ get_policy(char *string, char *magic)
 {
 	int n = 0;
 	n = count_flows(string, magic);
-	printf("flow number:    %i\n",n);
 	if (n > 0){
 		char *pch = strstr(string, magic);
 		char *pch1 = strstr(string,"cookie");
 		char *pch2 = strstr(string,"cookie");
-		printf("%i\n", pch1<pch);
-	    while( (pch1 < pch) && (pch1!=NULL)){
-	    	pch2 = pch1;
-	    	pch1 = strstr(pch1+1,"cookie");
-	    }
-	    printf("%i\n", pch1<pch);
-	    int p_length = strlen(pch2) - strlen(pch1);
-	    char *policy = malloc(p_length + 1);
-	    printf("%s\n", policy);
-	    return policy = strncpy(policy, pch2, p_length);
+		int p_length;
+		if(n==1){
+			p_length = strlen(pch2) - strlen(pch);
+			char *policy = malloc(p_length + 5);
+			strncpy(policy, pch1, p_length);
+			//strcat(policy,",");
+			return policy;
+		}else{
+		    while( pch1 < pch ){
+		    	pch2 = pch1;
+		    	pch1 = strstr(pch1+1,"cookie");
+		    }
+		    p_length = strlen(pch2) - strlen(pch);
+		    char *policy = malloc(p_length);
+		    strncpy(policy, pch2, p_length);
+		    //TODO fix redundant tail in policy
+		    //strcat(policy,",");
+		    return  policy;
+		}
+
 	}else{
 		char *policy = "";
 		return policy;
@@ -1466,7 +1476,7 @@ ofctl_pull_(int argc, char *argv[], bool aggregate)
 {
     struct ofpbuf *request;
     struct vconn *vconn;
-    char *magic = "write_metadata:0xefddaabb/0xffffffff";
+    char *magic = "actions=write_metadata:0xefddaabb/0xffffffff";
     char *s[3];
     s[0] = argv[0];
     s[1] = argv[1];
