@@ -396,6 +396,7 @@ usage(void)
     	   "  lock switch controller_id   lock switch from controller_id\n"
     	   "  check-lock switch           print lock information on switch\n"
     	   "  unlock switch controller_id unlock switch from controller_id\n",
+		   "  push switch id content      push content to the switch with unique id\n",
            program_name, program_name);
     vconn_usage(true, false, false);
     daemon_usage();
@@ -1366,6 +1367,7 @@ ofctl_checklock_flows__(int argc, char *argv[], bool aggregate)
     s[0] = argv[0];
     s[1] = argv[1];
     s[2] = "table=240";
+    char *magic = "ddfeec0f";
     vconn = prepare_dump_flows(argc, s, aggregate, &request);
     const struct ofp_header *request_oh = request->data;
     ovs_be32 send_xid = request_oh->xid;
@@ -1391,14 +1393,14 @@ ofctl_checklock_flows__(int argc, char *argv[], bool aggregate)
             //printf("...%s  %d\n",string,strlen(string));
             // count lock entries
             int i = 0;
-            char *pch=strchr(string,'ddfeec0f');
+            char *pch=strstr(string, magic);
             while (pch!=NULL) {
               i++;
-              pch=strchr(pch+1,'ddfeec0f');
+              pch=strstr(pch+1, magic);
             }
             lock_info.lock = i>0 ? true:false;
             if(lock_info.lock){
-            	char *meta = strchr(string,'m');
+            	char *meta = strstr(string, "metadata");
             	strncpy(lock_info.id, meta, m_len);
             }
             ofpraw_decode(&raw, reply->data);
@@ -1419,6 +1421,98 @@ ofctl_checklock_flows__(int argc, char *argv[], bool aggregate)
     }
     vconn_close(vconn);
     return lock_info;
+}
+
+static int
+count_flows(char *string, char *magic)
+{
+	char *pch=strstr(string, magic);
+	int n = 0;
+	while (pch!=NULL) {
+		n++;
+		pch=strstr(pch+1, magic);
+	}
+	return n;
+}
+
+static char *
+get_policy(char *string, char *magic)
+{
+	int n = 0;
+	n = count_flows(string, magic);
+	printf("flow number:    %i\n",n);
+	if (n > 0){
+		char *pch = strstr(string, magic);
+		char *pch1 = strstr(string,"cookie");
+		char *pch2 = strstr(string,"cookie");
+		printf("%i\n", pch1<pch);
+	    while( (pch1 < pch) && (pch1!=NULL)){
+	    	pch2 = pch1;
+	    	pch1 = strstr(pch1+1,"cookie");
+	    }
+	    printf("%i\n", pch1<pch);
+	    int p_length = strlen(pch2) - strlen(pch1);
+	    char *policy = malloc(p_length + 1);
+	    printf("%s\n", policy);
+	    return policy = strncpy(policy, pch2, p_length);
+	}else{
+		char *policy = "";
+		return policy;
+	}
+}
+
+static char *
+ofctl_pull_(int argc, char *argv[], bool aggregate)
+{
+    struct ofpbuf *request;
+    struct vconn *vconn;
+    char *magic = "write_metadata:0xefddaabb/0xffffffff";
+    char *s[3];
+    s[0] = argv[0];
+    s[1] = argv[1];
+    s[2] = "table=246";
+    vconn = prepare_dump_flows(argc, s, aggregate, &request);
+    const struct ofp_header *request_oh = request->data;
+    ovs_be32 send_xid = request_oh->xid;
+    enum ofpraw request_raw;
+    enum ofpraw reply_raw;
+    bool done = false;
+    char *policy;
+    ofpraw_decode_partial(&request_raw, request->data, request->size);
+    reply_raw = ofpraw_stats_request_to_reply(request_raw,
+                                              request_oh->version);
+
+    send_openflow_buffer(vconn, request);
+    while (!done) {
+        ovs_be32 recv_xid;
+        struct ofpbuf *reply;
+
+        run(vconn_recv_block(vconn, &reply), "OpenFlow packet receive failed");
+        recv_xid = ((struct ofp_header *) reply->data)->xid;
+        if (send_xid == recv_xid) {
+            enum ofpraw raw;
+            char *string;
+            string = ofp_to_string(reply->data, reply->size, verbosity + 1);
+            policy = get_policy(string, magic);
+            ofpraw_decode(&raw, reply->data);
+            if (ofptype_from_ofpraw(raw) == OFPTYPE_ERROR) {
+                done = true;
+            } else if (raw == reply_raw) {
+                done = !ofpmp_more(reply->data);
+            } else {
+                ovs_fatal(0, "received bad reply: %s",
+                          ofp_to_string(reply->data, reply->size,
+                                        verbosity + 1));
+            }
+        } else {
+        	policy = "";
+            VLOG_DBG("received reply with xid %08"PRIx32" "
+                     "!= expected %08"PRIx32, recv_xid, send_xid);
+        }
+        ofpbuf_delete(reply);
+    }
+    vconn_close(vconn);
+    return policy;
 }
 
 static void
@@ -1506,6 +1600,35 @@ ofctl_checklock(struct ovs_cmdl_context *ctx)
     }
     return;
 }
+
+
+static void
+ofctl_push(struct ovs_cmdl_context *ctx)
+{
+	char *id = ctx->argv[2];
+	char *content = ctx->argv[3];
+	printf("%s\n%s\n%s\n", ctx->argv[1], ctx->argv[2], ctx->argv[3]);
+	char *vlan = "table=246,dl_vlan=";
+	char *magic = ",action=write_metadata:0xefddaabb/0xffffffff";
+	char *concatString =  malloc(strlen(id)+strlen(content)+strlen(vlan)+strlen(magic)+2);
+	strcpy(concatString, vlan);
+	strcat(concatString, id);
+	strcat(concatString, ",");
+	strcat(concatString, content);
+	strcat(concatString, magic);
+	ofctl_flow_mod_2(ctx->argc, ctx->argv, concatString, OFPFC_ADD);
+}
+
+static void
+ofctl_pull(struct ovs_cmdl_context *ctx)
+{
+	char *policy = ofctl_pull_(ctx->argc, ctx->argv, false);
+    printf("%s\n",policy);
+
+}
+
+
+
 
 static void
 ofctl_add_flow(struct ovs_cmdl_context *ctx)
@@ -3882,6 +4005,8 @@ static const struct ovs_cmdl_command all_commands[] = {
 	{"lock", "switch flow",2, 2, ofctl_lock },
 	{"unlock", "switch flow",2, 2, ofctl_unlock },
     { "check-lock", "switch",1, 2, ofctl_checklock },
+	{ "push", "switch",3, 3, ofctl_push },
+	{ "pull", "switch",1, 1, ofctl_pull },
 
     { NULL, NULL, 0, 0, NULL },
 };

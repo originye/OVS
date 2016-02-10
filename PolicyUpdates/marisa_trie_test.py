@@ -12,6 +12,7 @@ values = values + values2
 #values = [(1, 2), (2, 1), (3, 3), (2, 1)]
 #fmt = '@Hf'
 #trie = marisa_trie.RecordTrie(fmt, zip(keys, values))
+
 trie = marisa_trie.BytesTrie(zip(keys, values))
 
 
