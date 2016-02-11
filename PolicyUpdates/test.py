@@ -1,7 +1,7 @@
 from policy_update import *
 s= ["s1"]
 flow = pull(s)
-print flow
+print bool(flow)
 print flow['dl_vlan']
 #print b
 

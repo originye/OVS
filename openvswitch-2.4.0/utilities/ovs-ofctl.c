@@ -1448,20 +1448,21 @@ get_policy(char *string, char *magic)
 		int p_length;
 		if(n==1){
 			p_length = strlen(pch2) - strlen(pch);
-			char *policy = malloc(p_length + 5);
-			strncpy(policy, pch1, p_length);
-			//strcat(policy,",");
+			char *policy1 = malloc(p_length);
+			strncpy(policy1, pch2, p_length);
+			char *policy = malloc(p_length);
+			strncpy(policy, policy1, p_length);
 			return policy;
 		}else{
 		    while( pch1 < pch ){
 		    	pch2 = pch1;
-		    	pch1 = strstr(pch1+1,"cookie");
+		    	pch1 = strstr(pch1+5,"cookie");
 		    }
 		    p_length = strlen(pch2) - strlen(pch);
+		    char *policy1 = malloc(p_length);
+		    strncpy(policy1, pch2, p_length);
 		    char *policy = malloc(p_length);
-		    strncpy(policy, pch2, p_length);
-		    //TODO fix redundant tail in policy
-		    //strcat(policy,",");
+		    strncpy(policy, policy1, p_length);
 		    return  policy;
 		}
 
@@ -1503,6 +1504,9 @@ ofctl_pull_(int argc, char *argv[], bool aggregate)
             enum ofpraw raw;
             char *string;
             string = ofp_to_string(reply->data, reply->size, verbosity + 1);
+            //ofp_print(stdout, reply->data, reply->size, verbosity + 1);
+            //printf("print_and_free\n");
+            //return true;
             policy = get_policy(string, magic);
             ofpraw_decode(&raw, reply->data);
             if (ofptype_from_ofpraw(raw) == OFPTYPE_ERROR) {
@@ -1558,7 +1562,7 @@ ofctl_unlock(struct ovs_cmdl_context *ctx)
 	if((!lock_info_.lock)||(strcmp(id,lock_info_.id)==0)){
 	    ofctl_flow_mod_2(ctx->argc, ctx->argv, concatString, strict ? OFPFC_DELETE_STRICT : OFPFC_DELETE);
 	}else{
-		printf("Locked \n");
+		printf("Not allowed to unLock \n");
 	}
 
 }
@@ -1616,6 +1620,10 @@ static void
 ofctl_push(struct ovs_cmdl_context *ctx)
 {
 	char *id = ctx->argv[2];
+	if (strlen(id)>4){
+		printf("Too long vlan id! \n");
+		return;
+	}
 	char *content = ctx->argv[3];
 	printf("%s\n%s\n%s\n", ctx->argv[1], ctx->argv[2], ctx->argv[3]);
 	char *vlan = "table=246,dl_vlan=";

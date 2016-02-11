@@ -8,14 +8,15 @@ last_pull = []
 s = "s1"
 Q = {}
 PID = [1,2,3,4,5,6,7,8,9,10]
-list=['n_bytes', 'dl_vlan', 'metadata']
+matching_fields_list = ['n_bytes', 'dl_vlan', 'metadata']
+
 
 def policy_update(controller_id):
     while controller_failure_detection(): # return True if no controller failure
         while True:
             try:
                 flow = pull(s)
-                if flow != " ":
+                if not flow:
                     break
             except NameError:
                 print "SwitchFailure"
@@ -84,7 +85,7 @@ def pull(switch):
         res = [p.returncode, p.communicate()]
         #logging.debug(str( res))
         res = res[1][0]
-        res = res[:-2]
+        #res = res[:-2]
         print res
         flow_dict = {}
         items = res.split(",")
@@ -94,7 +95,7 @@ def pull(switch):
             if item == '':
                 continue
             key, value = item.split("=")
-            if key in list:
+            if key in matching_fields_list:
                 if key == 'dl_vlan':
                     value, value2 = value.split(" ")
                 flow_dict[key] = value
