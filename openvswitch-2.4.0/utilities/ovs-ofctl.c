@@ -1638,6 +1638,22 @@ ofctl_push(struct ovs_cmdl_context *ctx)
 }
 
 static void
+ofctl_remove(struct ovs_cmdl_context *ctx)
+{
+	char *id = ctx->argv[2];
+	if (strlen(id)>4){
+		printf("Too long vlan id! \n");
+		return;
+	}
+	printf("%s\n%s\n%s\n", ctx->argv[1], ctx->argv[2], ctx->argv[3]);
+	char *vlan = "table=246,dl_vlan=";
+	char *concatString =  malloc(strlen(id) + strlen(vlan) + 2);
+	strcpy(concatString, vlan);
+	strcat(concatString, id);
+	ofctl_flow_mod_2(ctx->argc, ctx->argv, concatString, strict ? OFPFC_DELETE_STRICT : OFPFC_DELETE);
+}
+
+static void
 ofctl_pull(struct ovs_cmdl_context *ctx)
 {
 	char *policy = ofctl_pull_(ctx->argc, ctx->argv, false);
@@ -4020,11 +4036,12 @@ static const struct ovs_cmdl_command all_commands[] = {
     { "ofp-print", NULL, 1, 2, ofctl_ofp_print },
     { "encode-hello", NULL, 1, 1, ofctl_encode_hello },
 	/* Additional commands */
-	{"lock", "switch flow",2, 2, ofctl_lock },
-	{"unlock", "switch flow",2, 2, ofctl_unlock },
+	{"lock", "switch controller",2, 2, ofctl_lock },
+	{"unlock", "switch controller",2, 2, ofctl_unlock },
     { "check-lock", "switch",1, 2, ofctl_checklock },
-	{ "push", "switch",3, 3, ofctl_push },
+	{ "push", "switch id",3, 3, ofctl_push },
 	{ "pull", "switch",1, 1, ofctl_pull },
+	{ "remove", "switch id",2, 2, ofctl_remove },
 
     { NULL, NULL, 0, 0, NULL },
 };
