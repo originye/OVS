@@ -7,15 +7,14 @@ from seq_trie import Seq, SeqTrie
 
 last_pull = []
 s = ["s1"]
-#Q = {}
 PID = ['%02d' % i for i in xrange(1, 51)]  #['1','2',...]
 matching_fields_list = ['dl_vlan', 'metadata', 'in_port', 'dl_src', 'dl_dst', 'nw_src', 'nw_dst']
 compare_list = ['metadata', 'in_port', 'dl_src', 'dl_dst', 'nw_src', 'nw_dst']
-#!! controller id  < 10
 
 
+# !! controller id  < 10, Q: store all the to-be-installed policies
 def policy_update(controller_id, Q):
-    #cid = '%d' % controller_id
+    # cid = '%d' % controller_id
     cid = controller_id
     seq = Seq()
     seq_trie = SeqTrie(seq)
@@ -46,7 +45,7 @@ def policy_update(controller_id, Q):
 
 
 def upon_new_policy(controller_id, Q):
-    #cid = '1%d' % controller_id
+    # cid = '1%d' % controller_id
     cid = '1%s' % controller_id
     while True:
         flow = simulator()
@@ -101,7 +100,6 @@ def free_pid(pid, Q):
 
 
 def policy_store_to_trie(seq, flow):
-    #TODO : store the installed policy in marisa_trie
     seq.update(flow)
     seq_trie = SeqTrie(seq)
     #print seq_trie.metadata.get_value(u'metadata')
@@ -109,12 +107,12 @@ def policy_store_to_trie(seq, flow):
 
 
 def two_phase_update(policy):
-    #TODO: first update internal then ingress
+    # TODO: first update internal then ingress
     return True
 
 
 def getfromQ(pid, Q):
-    #TODO: get the policy with pid from Q
+    # TODO: get the policy with pid from Q
     try:
         policy = Q[pid]
     except KeyError:
@@ -124,10 +122,12 @@ def getfromQ(pid, Q):
 
 # return True if no controller failure
 def controller_failure_detection():
+    # TODO: heartbeat mechanisms and failure detection
     return True
 
 
 def switch_failure_handler():
+    # TODO: handler switch failure and also how to detect switch failure
     return True
 
 
@@ -193,7 +193,8 @@ def remove(flow):
         return None
 
 
-# pull a policy from switch return flow_dict={'pid':'11','cid':'23','dl_vlan':'2311',metadata':'0x1123123','ip_src': '11.111.11.11'....}
+# pull a policy from switch return
+# flow_dict={'pid':'11','cid':'23','dl_vlan':'2311',metadata':'0x1123123','ip_src': '11.111.11.11'....}
 def pull(switch):
     #flow = {'cid':0, 'pid': 0, 'policy': " "}
     try:
@@ -226,10 +227,10 @@ def pull(switch):
                     flow_dict['pid'] = pid
                 flow_dict[key] = value
         return flow_dict
-        #return subprocess.check_output(cmdline_args, stderr=subprocess.STDOUT)
+        # return subprocess.check_output(cmdline_args, stderr=subprocess.STDOUT)
     except subprocess.CalledProcessError, e:
         logging.warning(str( e))
-        #logging.warning(subprocess.Popen.communicate())
+        # logging.warning(subprocess.Popen.communicate())
         return None
 
 
@@ -237,31 +238,31 @@ def pull(switch):
 def push(flow):
     try:
         cmdline_args = ["ovs-ofctl"] + ["push"] + flow + ["-O", "OpenFlow14"]
-        #logging.debug(str( cmdline_args))
+        # logging.debug(str( cmdline_args))
         p = subprocess.Popen(cmdline_args, stdout=subprocess.PIPE, stderr=subprocess.PIPE)
         p.wait()
         res = [p.returncode, p.communicate()]
-        #logging.debug(str( res))
+        # logging.debug(str( res))
         return res
-        #return subprocess.check_output(cmdline_args, stderr=subprocess.STDOUT)
+        # return subprocess.check_output(cmdline_args, stderr=subprocess.STDOUT)
     except subprocess.CalledProcessError, e:
         logging.warning(str( e))
-        #logging.warning(subprocess.Popen.communicate())
+        # logging.warning(subprocess.Popen.communicate())
         return None
 
 
-#clear configuration
+# clear configuration
 def clear_config(switch):
     try:
         cmdline_args = ["ovs-ofctl"] + ["del-flows"] + switch + ["-O", "OpenFlow14"]
-        #logging.debug(str( cmdline_args))
+        # logging.debug(str( cmdline_args))
         p = subprocess.Popen(cmdline_args, stdout=subprocess.PIPE, stderr=subprocess.PIPE)
         p.wait()
         res = [p.returncode, p.communicate()]
-        #logging.debug(str( res))
+        # logging.debug(str( res))
         return res
-        #return subprocess.check_output(cmdline_args, stderr=subprocess.STDOUT)
+        # return subprocess.check_output(cmdline_args, stderr=subprocess.STDOUT)
     except subprocess.CalledProcessError, e:
         logging.warning(str( e))
-        #logging.warning(subprocess.Popen.communicate())
+        # logging.warning(subprocess.Popen.communicate())
         return None
