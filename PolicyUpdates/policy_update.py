@@ -5,41 +5,49 @@ import time
 from seq_trie import Seq, SeqTrie
 
 last_pull = []
-s = "s1"
+s = ["s1"]
 Q = {}
-PID = [1,2,3,4,5,6,7,8,9,10]
+PID = ['%d' % i for i in xrange(1, 51)]  #['1','2',...]
 matching_fields_list = ['dl_vlan', 'metadata', 'in_port', 'dl_src', 'dl_dst', 'nw_src', 'nw_dst']
 compare_list = ['metadata', 'in_port', 'dl_src', 'dl_dst', 'nw_src', 'nw_dst']
 
 
 def policy_update(controller_id):
-    seq_trie = SeqTrie()
+    cid = '%d' % controller_id
     seq = Seq()
-    while controller_failure_detection(): # return True if no controller failure
+    seq_trie = SeqTrie(seq)
+    while controller_failure_detection():
         while True:
             try:
                 flow = pull(s)
                 if not flow:
-                    time.sleep(0.01)
+                    time.sleep(0.1)
+                    print "sleep"
                     continue
+                else:
+                    break
             except NameError:
                 print "SwitchFailure"
                 switch_failure_handler()
                 raise
-        if flow['cid'] == controller_id:
+        if flow['cid'] == cid:
             if not conflict_detection(seq_trie, flow):
-                p = getfromQ(flow['pid'])
-                two_phase_update(p)
-                remove(flow)
+                #p = getfromQ(flow['pid'])
+                #two_phase_update(p)
+                remove(s + [flow['dl_vlan']])
                 seq_trie = policy_store_to_trie(seq, flow)
                 free_pid(flow['pid'])
             else:
-                remove(flow)
+                remove(s + [flow['dl_vlan']])
 
 
 def free_pid(pid):
-    del Q[pid]
+    try:
+        del Q[pid]
+    except KeyError:
+        print "Q error"
     PID.append(pid)
+    return True
 
 
 def policy_store_to_trie(seq, flow):
@@ -64,6 +72,7 @@ def getfromQ(pid):
     return policy
 
 
+# return True if no controller failure
 def controller_failure_detection():
     return True
 
@@ -74,7 +83,6 @@ def switch_failure_handler():
 
 # if detect conflict, return True
 def conflict_detection(seq_trie, flow):
-    #TODO: no conflict return True, otherwise return False
     none = True
     ANY = {'metadata':'ANY', 'in_port':'ANY', 'dl_src':'ANY', 'dl_dst':'ANY', 'nw_src':'ANY', 'nw_dst':'ANY'}
     pid = get_pid(seq_trie, compare_list[0], flow) + get_pid(seq_trie, compare_list[0], ANY)
@@ -132,7 +140,7 @@ def remove(flow):
         return None
 
 
-# pull a policy from switch return flow_dict={'metadata':'0x1123123','ip_src': '11.111.11.11'....}
+# pull a policy from switch return flow_dict={'pid':'11','cid':'23','dl_vlan':'2311',metadata':'0x1123123','ip_src': '11.111.11.11'....}
 def pull(switch):
     #flow = {'cid':0, 'pid': 0, 'policy': " "}
     try:
@@ -144,12 +152,11 @@ def pull(switch):
         #logging.debug(str( res))
         res = res[1][0]
         #res = res[:-2]
-        print res
         flow_dict = {}
+        print res
         items = res.split(",")
         for item in items:
             item = item.strip()
-            print item
             if item == '':
                 continue
             key, value = item.split("=")
@@ -169,12 +176,27 @@ def pull(switch):
         return None
 
 
-
-
 # ovs-ofctl push switch id content, id= xxxx
 def push(flow):
     try:
         cmdline_args = ["ovs-ofctl"] + ["push"] + flow + ["-O", "OpenFlow14"]
+        #logging.debug(str( cmdline_args))
+        p = subprocess.Popen(cmdline_args, stdout=subprocess.PIPE, stderr=subprocess.PIPE)
+        p.wait()
+        res = [p.returncode, p.communicate()]
+        #logging.debug(str( res))
+        return res
+        #return subprocess.check_output(cmdline_args, stderr=subprocess.STDOUT)
+    except subprocess.CalledProcessError, e:
+        logging.warning(str( e))
+        #logging.warning(subprocess.Popen.communicate())
+        return None
+
+
+#clear configuration
+def clear_config(switch):
+    try:
+        cmdline_args = ["ovs-ofctl"] + ["del-flows"] + switch + ["-O", "OpenFlow14"]
         #logging.debug(str( cmdline_args))
         p = subprocess.Popen(cmdline_args, stdout=subprocess.PIPE, stderr=subprocess.PIPE)
         p.wait()
