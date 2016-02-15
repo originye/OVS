@@ -1,9 +1,11 @@
 import subprocess
 import logging
 import re
-import time
+import time, signal
 import random
 from seq_trie import Seq, SeqTrie
+import multiprocessing as mp
+from multiprocessing import  Manager
 
 last_pull = []
 s = ["s1"]
@@ -18,6 +20,7 @@ def policy_update(controller_id, Q):
     cid = controller_id
     seq = Seq()
     seq_trie = SeqTrie(seq)
+    controller_init(s, cid)
     while controller_failure_detection():
         while True:
             try:
@@ -120,10 +123,45 @@ def getfromQ(pid, Q):
     return policy
 
 
+def heart_beat(switch, cid):
+    send_heart_beat()
+
+
+def controller_init(switch, cid):
+    manager = Manager()
+    failure = manager.Value
+    if __name__ == "__main__":
+    processes=[]
+    process1 = mp.Process(target=heart_beat, args=(switch, cid,))
+    processes.append(process1)
+    process = mp.Process(target=controller_detector, args=(switch,))
+    processes.append(process)
+# Run processes
+    for p in processes:
+        p.start()
+        print p, p.is_alive(), p.name
+# Exit the completed processes
+    for p in processes:
+        p.join()
+
+
+def heart_beat(switch, cid):
+    send_heart_beat()
+    return True
+
+
+def controller_detector(switch):
+    return True
+
+
 # return True if no controller failure
 def controller_failure_detection():
     # TODO: heartbeat mechanisms and failure detection
-    return True
+    try:
+        return True
+    except NameError:
+        print NameError
+
 
 
 def switch_failure_handler():
@@ -216,7 +254,7 @@ def pull(switch):
             try:
                 key, value = item.split("=")
             except ValueError:
-                print item
+                print "decoding error,", item
                 break
             if key in matching_fields_list:
                 if " " in value:

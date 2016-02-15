@@ -1473,6 +1473,43 @@ get_policy(char *string, char *magic)
 }
 
 static char *
+get_controllers(char *string, char *magic)
+{
+
+// TODO segmentation fault here!
+	int n = 0;
+	n = count_flows(string, magic);
+	char *controller = malloc(3*n+1);
+	if (n > 0){
+		char *pch = strstr(string, magic);
+		char *pch1 = strstr(string,"metadata");
+		char *pch2 = strstr(string,"metadata");
+		int p_length;
+		for(int i=1;i<=n;i++){
+		    while( pch1 < pch ){
+		    	pch2 = pch1;
+		    	pch1 = strstr(pch1+1,"metadata");
+		    }
+		    p_length = 2;
+		    char *controller1 = malloc(p_length);
+		    if (i==1){
+		    	strncpy(controller1, pch2+11, p_length);
+		    	strcpy(controller, controller1);
+		    }else{
+		    	strcat(controller, ",");
+		    	strncpy(controller1, pch2+11, p_length);
+		    	strcat(controller,controller1);
+		    }
+		}
+		return  controller;
+
+	}else{
+		char *controller = "";
+		return controller;
+	}
+}
+
+static char *
 ofctl_pull_(int argc, char *argv[], bool aggregate)
 {
     struct ofpbuf *request;
@@ -1661,7 +1698,88 @@ ofctl_pull(struct ovs_cmdl_context *ctx)
 
 }
 
+static void
+ofctl_heartbeat(struct ovs_cmdl_context *ctx)
+{
+	char *tmp = ctx->argv[2];
+	printf("%s\n", ctx->argv[2]);
+	char *a = tmp;
+	char *tmp1 = "table=241,idle_timeout=30,metadata=0x";
+	char *tmp2 = ",check_overlap,action=write_metadata:0xccaffc0f/0xffffffff";
+	char *concatString =  malloc(strlen(a)+strlen(tmp1)+strlen(tmp2)+1);
+	strcpy(concatString, tmp1);
+	strcat(concatString, a);
+	strcat(concatString, tmp2);
+	printf("%s\n", concatString);
+	ofctl_flow_mod_2(ctx->argc, ctx->argv, concatString, OFPFC_ADD);
 
+}
+
+
+static char *
+ofctl_check_alive_controller_(int argc, char *argv[], bool aggregate)
+{
+	struct ofpbuf *request;
+	struct vconn *vconn;
+	char *magic = "actions=write_metadata:0xccaffc0f/0xffffffff";
+	char *s[3];
+	s[0] = argv[0];
+	s[1] = argv[1];
+	s[2] = "table=241";
+	vconn = prepare_dump_flows(argc, s, aggregate, &request);
+	const struct ofp_header *request_oh = request->data;
+	ovs_be32 send_xid = request_oh->xid;
+	enum ofpraw request_raw;
+	enum ofpraw reply_raw;
+	bool done = false;
+	char *controller;
+	ofpraw_decode_partial(&request_raw, request->data, request->size);
+	reply_raw = ofpraw_stats_request_to_reply(request_raw,
+			request_oh->version);
+
+	send_openflow_buffer(vconn, request);
+	while (!done) {
+		ovs_be32 recv_xid;
+		struct ofpbuf *reply;
+
+		run(vconn_recv_block(vconn, &reply), "OpenFlow packet receive failed");
+		recv_xid = ((struct ofp_header *) reply->data)->xid;
+		if (send_xid == recv_xid) {
+			enum ofpraw raw;
+			char *string;
+			string = ofp_to_string(reply->data, reply->size, verbosity + 1);
+			//ofp_print(stdout, reply->data, reply->size, verbosity + 1);
+			//printf("print_and_free\n");
+			//return true;
+			controller = get_controllers(string, magic);
+			ofpraw_decode(&raw, reply->data);
+			if (ofptype_from_ofpraw(raw) == OFPTYPE_ERROR) {
+				done = true;
+			} else if (raw == reply_raw) {
+				done = !ofpmp_more(reply->data);
+			} else {
+				ovs_fatal(0, "received bad reply: %s",
+						ofp_to_string(reply->data, reply->size,
+								verbosity + 1));
+			}
+		} else {
+			controller = "";
+			VLOG_DBG("received reply with xid %08"PRIx32" "
+					"!= expected %08"PRIx32, recv_xid, send_xid);
+		}
+		ofpbuf_delete(reply);
+	}
+	vconn_close(vconn);
+	return controller;
+}
+
+
+static void
+ofctl_check_alive_controller(struct ovs_cmdl_context *ctx)
+{
+	char *controllers = ofctl_check_alive_controller_(ctx->argc, ctx->argv, false);
+    printf("%s\n",controllers);
+}
 
 
 static void
@@ -4042,6 +4160,8 @@ static const struct ovs_cmdl_command all_commands[] = {
 	{ "push", "switch id",3, 3, ofctl_push },
 	{ "pull", "switch",1, 1, ofctl_pull },
 	{ "remove", "switch id",2, 2, ofctl_remove },
+	{ "heart-beat", "switch id",2, 2, ofctl_heartbeat },
+	{ "check-alive-controller", "switch",1, 1, ofctl_check_alive_controller },
 
     { NULL, NULL, 0, 0, NULL },
 };
