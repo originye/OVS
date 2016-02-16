@@ -48,15 +48,25 @@ def simulator_test(cid):
         print "flow: %s" % flow
 
 
+def heartbeat_test():
+    s = ["s1"]
+    heart_beat(s, 1)
+    heart_beat(s, 2)
+    controller_detector(s)
+
+
 def main_test():
     s = ["s1"]
     clear_config(s)
     manager = Manager()
 
     Q = manager.dict()
+    failure = manager.Value('i', 0)
     processes=[]
-    process1 = mp.Process(target=policy_update, args=('1', Q,))
+    process1 = mp.Process(target=policy_update, args=('1', Q, failure,))
     processes.append(process1)
+    process2 = mp.Process(target=controller_failure_detection, args=('1', failure,))
+    processes.append(process2)
     process = mp.Process(target=upon_new_policy, args=('1', Q,))
     processes.append(process)
 # Run processes
@@ -74,7 +84,5 @@ try:
     main_test()
 except ValueError:
     print pull(['s1'])
-
-
 
 

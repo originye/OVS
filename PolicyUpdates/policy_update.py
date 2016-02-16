@@ -14,37 +14,77 @@ matching_fields_list = ['dl_vlan', 'metadata', 'in_port', 'dl_src', 'dl_dst', 'n
 compare_list = ['metadata', 'in_port', 'dl_src', 'dl_dst', 'nw_src', 'nw_dst']
 
 
-# !! controller id  < 10, Q: store all the to-be-installed policies
-def policy_update(controller_id, Q):
+# !! controller id  < 10, Q: store all the to-be-installed policies; failure: flag for controller failure
+def policy_update(controller_id, Q, failure):
     # cid = '%d' % controller_id
     cid = controller_id
     seq = Seq()
     seq_trie = SeqTrie(seq)
     controller_init(s, cid)
-    while controller_failure_detection():
-        while True:
-            try:
-                flow = pull(s)
-                if not flow:
-                    time.sleep(1)
-                    print "sleep"
-                    continue
+    while True:
+        if failure.value:
+            while True:
+                try:
+                    flow = pull(s)
+                    if not flow:
+                        time.sleep(1)
+                        print "sleep"
+                        continue
+                    else:
+                        break
+                except NameError:
+                    print "SwitchFailure"
+                    switch_failure_handler()
+                    raise
+            if flow['cid'] == cid:
+                if not conflict_detection(seq_trie, flow):
+                    p = getfromQ(flow['pid'], Q)
+                    #two_phase_update(p)
+                    remove(s + [flow['dl_vlan']])
+                    seq_trie = policy_store_to_trie(seq, flow)
+                    free_pid(flow['pid'], Q)
                 else:
-                    break
-            except NameError:
-                print "SwitchFailure"
-                switch_failure_handler()
-                raise
-        if flow['cid'] == cid:
-            if not conflict_detection(seq_trie, flow):
-                p = getfromQ(flow['pid'], Q)
-                #two_phase_update(p)
-                remove(s + [flow['dl_vlan']])
-                seq_trie = policy_store_to_trie(seq, flow)
-                free_pid(flow['pid'], Q)
+                    remove(s + [flow['dl_vlan']])
+                    print "!!removed! ", flow['dl_vlan']
+        else:
+            controller_failure_handler()
+
+
+# return True if no controller failure
+def controller_failure_detection(cid, failure):
+    # TODO: heartbeat mechanisms and failure detection
+    controllers1 = controller_detector(s)
+    while True:
+        try:
+            heart_beat(s, cid)
+            controllers2 = controller_detector(s)
+            print controllers2
+            if (set(controllers1).intersection(controllers2)) != set(controllers1):
+                failure.value = 1
             else:
-                remove(s + [flow['dl_vlan']])
-                print "!!removed! ", flow['dl_vlan']
+                failure.value = 0
+            time.sleep(5)
+        except ValueError:
+            print ValueError
+            print "controller failure detection failed"
+
+
+def policy_update_main(controller_id, Q):
+    manager = Manager()
+
+    failure = manager.Value()
+    processes = []
+    process1 = mp.Process(target=policy_update, args=(controller_id, Q, failure))
+    processes.append(process1)
+    process = mp.Process(target=controller_failure_detection, args=(controller_id, failure))
+    processes.append(process)
+# Run processes
+    for p in processes:
+        p.start()
+        print p, p.is_alive(), p.name
+# Exit the completed processes
+    for p in processes:
+        p.join()
 
 
 def upon_new_policy(controller_id, Q):
@@ -123,48 +163,30 @@ def getfromQ(pid, Q):
     return policy
 
 
-def heart_beat(switch, cid):
-    send_heart_beat()
-
-
 def controller_init(switch, cid):
-    manager = Manager()
-    failure = manager.Value
-    if __name__ == "__main__":
-    processes=[]
-    process1 = mp.Process(target=heart_beat, args=(switch, cid,))
-    processes.append(process1)
-    process = mp.Process(target=controller_detector, args=(switch,))
-    processes.append(process)
-# Run processes
-    for p in processes:
-        p.start()
-        print p, p.is_alive(), p.name
-# Exit the completed processes
-    for p in processes:
-        p.join()
+    return True
 
 
 def heart_beat(switch, cid):
-    send_heart_beat()
+    cid = '%s' % cid
+    flow = switch + [cid]
+    send_heart_beat(flow)
     return True
 
 
 def controller_detector(switch):
-    return True
-
-
-# return True if no controller failure
-def controller_failure_detection():
-    # TODO: heartbeat mechanisms and failure detection
-    try:
-        return True
-    except NameError:
-        print NameError
-
+    flow = switch
+    controllers = alive_controller(flow)
+    #print controllers
+    return controllers
 
 
 def switch_failure_handler():
+    # TODO: handler switch failure and also how to detect switch failure
+    return True
+
+
+def controller_failure_handler():
     # TODO: handler switch failure and also how to detect switch failure
     return True
 
@@ -212,6 +234,55 @@ def get_pid(seq_trie, field, flow):
     if field == 'nw_dst':
         pid = seq_trie.nw_dst.get_value(unicode(flow[field]))
         return pid
+
+
+# ovs-ofctl heart-beat switch id
+def send_heart_beat(flow):
+    try:
+        cmdline_args = ["ovs-ofctl"] + ["heart-beat"] + flow + ["-O", "OpenFlow14"]
+        #logging.debug(str( cmdline_args))
+        p = subprocess.Popen(cmdline_args, stdout=subprocess.PIPE, stderr=subprocess.PIPE)
+        p.wait()
+        res = [p.returncode, p.communicate()]
+        #logging.debug(str( res))
+        return res
+        #return subprocess.check_output(cmdline_args, stderr=subprocess.STDOUT)
+    except subprocess.CalledProcessError, e:
+        logging.warning(str( e))
+        #logging.warning(subprocess.Popen.communicate())
+        return None
+
+
+# ovs-ofctl check-alive-controller switch
+def alive_controller(flow):
+    try:
+        cmdline_args = ["ovs-ofctl"] + ["check-alive-controller"] + flow + ["-O", "OpenFlow14"]
+        #logging.debug(str( cmdline_args))
+        p = subprocess.Popen(cmdline_args, stdout=subprocess.PIPE, stderr=subprocess.PIPE)
+        p.wait()
+        res = [p.returncode, p.communicate()]
+        #logging.debug(str( res))
+        res = res[1][0]
+        flows = res.split("\n")[1:]
+        controllers = []
+        for flow in flows:
+            items = flow.split(",")
+            for item in items:
+                item = item.strip()
+                if item == '':
+                    continue
+                if "metadata" in item:
+                    print item
+                    meta, action = item.split(" ")
+                    metadata, controller = meta.split("=")
+                    controllers.append(controller)
+        print "controllers:", controllers
+        return controllers
+        #return subprocess.check_output(cmdline_args, stderr=subprocess.STDOUT)
+    except subprocess.CalledProcessError, e:
+        logging.warning(str( e))
+        #logging.warning(subprocess.Popen.communicate())
+        return None
 
 
 # ovs-ofctl remove switch id

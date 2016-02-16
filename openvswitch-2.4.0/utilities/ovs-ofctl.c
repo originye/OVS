@@ -991,7 +991,6 @@ prepare_dump_flows(int argc, char *argv[], bool aggregate,
     struct ofputil_flow_stats_request fsr;
     struct vconn *vconn;
     char *error;
-
     error = parse_ofp_flow_stats_request_str(&fsr, aggregate,
                                              argc > 2 ? argv[2] : "",
                                              &usable_protocols);
@@ -1479,28 +1478,49 @@ get_controllers(char *string, char *magic)
 // TODO segmentation fault here!
 	int n = 0;
 	n = count_flows(string, magic);
-	char *controller = malloc(3*n+1);
+	printf("%d\n",n);
+	char *controller = malloc(2+2);
 	if (n > 0){
 		char *pch = strstr(string, magic);
 		char *pch1 = strstr(string,"metadata");
 		char *pch2 = strstr(string,"metadata");
 		int p_length;
+		/*
 		for(int i=1;i<=n;i++){
 		    while( pch1 < pch ){
 		    	pch2 = pch1;
 		    	pch1 = strstr(pch1+1,"metadata");
 		    }
 		    p_length = 2;
-		    char *controller1 = malloc(p_length);
+		    char *controller1 = malloc(p_length+1);
 		    if (i==1){
-		    	strncpy(controller1, pch2+11, p_length);
+		    	printf("%s\n%s\n",pch2, pch2+11);
+		    	memcpy(controller1, pch2+strlen("metadata=0x"), strlen("01"));
+		    	strcat(controller1, "\0");
+		    	printf("%s\n",controller1);
 		    	strcpy(controller, controller1);
+		    	printf("%s\n",controller);
 		    }else{
 		    	strcat(controller, ",");
 		    	strncpy(controller1, pch2+11, p_length);
 		    	strcat(controller,controller1);
+		    	printf("%s\n",controller);
 		    }
+		}*/
+		while( pch1 < pch ){
+			pch2 = pch1;
+			pch1 = strstr(pch1+1,"metadata");
 		}
+		p_length = 2;
+		char *controller1 = malloc(p_length+1);
+
+		printf("%s\n%s\n",pch2, pch2+11);
+		strncpy(controller1, pch2+strlen("metadata=0x"), strlen("01"));
+		printf("%s\n",controller1);
+		strcpy(controller, controller1);
+		printf("%s\n",controller);
+
+		printf("%s\n",controller);
 		return  controller;
 
 	}else{
@@ -1519,6 +1539,7 @@ ofctl_pull_(int argc, char *argv[], bool aggregate)
     s[0] = argv[0];
     s[1] = argv[1];
     s[2] = "table=246";
+    argc = 3;
     vconn = prepare_dump_flows(argc, s, aggregate, &request);
     const struct ofp_header *request_oh = request->data;
     ovs_be32 send_xid = request_oh->xid;
@@ -1726,6 +1747,7 @@ ofctl_check_alive_controller_(int argc, char *argv[], bool aggregate)
 	s[0] = argv[0];
 	s[1] = argv[1];
 	s[2] = "table=241";
+	argc = 3;
 	vconn = prepare_dump_flows(argc, s, aggregate, &request);
 	const struct ofp_header *request_oh = request->data;
 	ovs_be32 send_xid = request_oh->xid;
@@ -1751,7 +1773,8 @@ ofctl_check_alive_controller_(int argc, char *argv[], bool aggregate)
 			//ofp_print(stdout, reply->data, reply->size, verbosity + 1);
 			//printf("print_and_free\n");
 			//return true;
-			controller = get_controllers(string, magic);
+			//controller = get_controllers(string, magic);
+			controller = string;
 			ofpraw_decode(&raw, reply->data);
 			if (ofptype_from_ofpraw(raw) == OFPTYPE_ERROR) {
 				done = true;
