@@ -57,17 +57,18 @@ def heartbeat_test():
 
 def main_test():
     s = ["s1"]
-    clear_config(s)
+    #clear_config(s)
     manager = Manager()
 
     Q = manager.dict()
     failure = manager.Value('i', 0)
+    failed_list = manager.list()
     processes=[]
-    process1 = mp.Process(target=policy_update, args=('1', Q, failure,))
+    process1 = mp.Process(target=policy_update, args=(s, '1', Q, failure, failed_list,))
     processes.append(process1)
-    process2 = mp.Process(target=controller_failure_detection, args=('1', failure,))
+    process2 = mp.Process(target=controller_failure_detection, args=(s, '1', failure, failed_list,))
     processes.append(process2)
-    process = mp.Process(target=upon_new_policy, args=('1', Q,))
+    process = mp.Process(target=upon_new_policy, args=(s, '1', Q,))
     processes.append(process)
 # Run processes
     for p in processes:
@@ -80,9 +81,25 @@ def main_test():
 #conflict_test()
 #policy_update_test(12)
 #simulator_test(1)
-try:
-    main_test()
-except ValueError:
-    print pull(['s1'])
+# try:
+#     main_test()
+# except ValueError:
+#     print pull(['s1'])
 
-
+# manager = Manager()
+#
+# failure = manager.list()
+# failure.append("s")
+# print failure
+#
+# lock(["s1"]+["1"])
+# res = lock(["s1"]+["2"])
+# print "Locked" in res[1][0]
+# print "Locked" in res
+res = dump(['s1'])
+print res
+vlan = get_vlan(res, "1")
+print vlan
+for i in vlan:
+    flow = ['s1'] + [i]
+    remove(flow)

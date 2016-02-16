@@ -8,21 +8,21 @@ import multiprocessing as mp
 from multiprocessing import  Manager
 
 last_pull = []
-s = ["s1"]
+#s = ["s1"]
 PID = ['%02d' % i for i in xrange(1, 51)]  #['1','2',...]
 matching_fields_list = ['dl_vlan', 'metadata', 'in_port', 'dl_src', 'dl_dst', 'nw_src', 'nw_dst']
 compare_list = ['metadata', 'in_port', 'dl_src', 'dl_dst', 'nw_src', 'nw_dst']
 
 
 # !! controller id  < 10, Q: store all the to-be-installed policies; failure: flag for controller failure
-def policy_update(controller_id, Q, failure):
+def policy_update(switch, controller_id, Q, failure, failed_list):
     # cid = '%d' % controller_id
     cid = controller_id
+    s = switch
     seq = Seq()
     seq_trie = SeqTrie(seq)
-    controller_init(s, cid)
     while True:
-        if failure.value:
+        if not failure.value:
             while True:
                 try:
                     flow = pull(s)
@@ -47,12 +47,13 @@ def policy_update(controller_id, Q, failure):
                     remove(s + [flow['dl_vlan']])
                     print "!!removed! ", flow['dl_vlan']
         else:
-            controller_failure_handler()
+            controller_failure_handler(cid, s, failed_list)
 
 
 # return True if no controller failure
-def controller_failure_detection(cid, failure):
+def controller_failure_detection(switch, cid, failure, failed_list):
     # TODO: heartbeat mechanisms and failure detection
+    s = switch
     controllers1 = controller_detector(s)
     while True:
         try:
@@ -60,9 +61,12 @@ def controller_failure_detection(cid, failure):
             controllers2 = controller_detector(s)
             print controllers2
             if (set(controllers1).intersection(controllers2)) != set(controllers1):
+                print "failed controller"
+                failed_list = list(set(controllers1) - set(controllers2))
                 failure.value = 1
             else:
                 failure.value = 0
+            controllers1 = controllers2
             time.sleep(5)
         except ValueError:
             print ValueError
@@ -87,9 +91,10 @@ def policy_update_main(controller_id, Q):
         p.join()
 
 
-def upon_new_policy(controller_id, Q):
+def upon_new_policy(switch, controller_id, Q):
     # cid = '1%d' % controller_id
     cid = '1%s' % controller_id
+    s = switch
     while True:
         flow = simulator()
         pid = PID.pop(0)
@@ -163,10 +168,6 @@ def getfromQ(pid, Q):
     return policy
 
 
-def controller_init(switch, cid):
-    return True
-
-
 def heart_beat(switch, cid):
     cid = '%s' % cid
     flow = switch + [cid]
@@ -186,9 +187,24 @@ def switch_failure_handler():
     return True
 
 
-def controller_failure_handler():
+def controller_failure_handler(cid, s, failed_list):
     # TODO: handler switch failure and also how to detect switch failure
-    return True
+    print "controller failure!"
+    controllers = controller_detector(s)
+    controller_ids = []
+    for c in controllers:
+        c1, c2 = c.split("x")
+        controller_ids.append(c2)
+    res = lock(cid)
+    if "Locked" in res:
+        return None
+    else:
+        res = dump(s)
+        vlan = get_vlan(res, cid)
+        for i in vlan:
+            flow = s + [i]
+            remove(flow)
+        return None
 
 
 # if detect conflict, return True
@@ -272,7 +288,6 @@ def alive_controller(flow):
                 if item == '':
                     continue
                 if "metadata" in item:
-                    print item
                     meta, action = item.split(" ")
                     metadata, controller = meta.split("=")
                     controllers.append(controller)
@@ -311,12 +326,13 @@ def pull(switch):
         #logging.debug(str( cmdline_args))
         p = subprocess.Popen(cmdline_args, stdout=subprocess.PIPE, stderr=subprocess.PIPE)
         p.wait()
-        res = [p.returncode, p.communicate()]
+        res1 = [p.returncode, p.communicate()]
         #logging.debug(str( res))
-        res = res[1][0]
+        res = res1[1][0]
         #res = res[:-2]
         flow_dict = {}
-        #print res
+        if "rejected" in res:
+            return flow_dict
         items = res.split(",")
         for item in items:
             item = item.strip()
@@ -375,3 +391,54 @@ def clear_config(switch):
         logging.warning(str( e))
         # logging.warning(subprocess.Popen.communicate())
         return None
+
+
+# ovs-ofctl lock switch controller_id
+def lock(flow):
+    try:
+        cmdline_args = ["ovs-ofctl"] + ["lock"] + flow + ["-O", "OpenFlow14"]
+        # logging.debug(str( cmdline_args))
+        p = subprocess.Popen(cmdline_args, stdout=subprocess.PIPE, stderr=subprocess.PIPE)
+        p.wait()
+        res = [p.returncode, p.communicate()]
+        # logging.debug(str( res))
+        return res[1][0]
+        # return subprocess.check_output(cmdline_args, stderr=subprocess.STDOUT)
+    except subprocess.CalledProcessError, e:
+        logging.warning(str( e))
+        # logging.warning(subprocess.Popen.communicate())
+        return None
+
+
+def dump(switch):
+    try:
+        cmdline_args = ["ovs-ofctl"] + ["dump-flows"] + switch + ["table=246"] + ["-O", "OpenFlow14"]
+        # logging.debug(str( cmdline_args))
+        p = subprocess.Popen(cmdline_args, stdout=subprocess.PIPE, stderr=subprocess.PIPE)
+        p.wait()
+        res = [p.returncode, p.communicate()]
+        # logging.debug(str( res))
+        return res[1][0]
+        # return subprocess.check_output(cmdline_args, stderr=subprocess.STDOUT)
+    except subprocess.CalledProcessError, e:
+        logging.warning(str( e))
+        # logging.warning(subprocess.Popen.communicate())
+        return None
+
+
+def get_vlan(res, cid):
+        vlan = []
+        flows = res.split("\n")[1:]
+        for flow in flows:
+            items = flow.split(",")
+            for item in items:
+                item = item.strip()
+                if item == '':
+                    continue
+                if "dl_vlan" in item:
+                    if "action" in item:
+                        item, action = item.split(" ")
+                    key, value = item.split("=")
+                    if value[1:2] == cid:
+                        vlan.append(value)
+        return vlan

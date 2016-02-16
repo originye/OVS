@@ -394,7 +394,7 @@ usage(void)
            "  ofp-parse-pcap PCAP         print OpenFlow read from PCAP\n"
     	   "\nAddition commands:\n"
     	   "  lock switch controller_id   lock switch from controller_id\n"
-    	   "  check-lock switch           print lock information on switch\n"
+    	   "  check-lock switch           print lock id on switch\n"
     	   "  unlock switch controller_id unlock switch from controller_id\n",
 		   "  push switch id content      push content to the switch with unique id\n",
 		   "  pull switch                 pull policy from the switch\n",
@@ -1354,6 +1354,7 @@ struct lock_info{
 };
 
 /* Additional functions*/
+
 static struct lock_info
 ofctl_checklock_flows__(int argc, char *argv[], bool aggregate)
 {
@@ -1422,6 +1423,26 @@ ofctl_checklock_flows__(int argc, char *argv[], bool aggregate)
     vconn_close(vconn);
     return lock_info;
 }
+
+
+static bool
+reject_lock(int argc, char *argv[], bool aggregate)
+{
+	char *s[2];
+	s[0] = argv[0];
+	s[1] = argv[1];
+    struct lock_info info = ofctl_checklock_flows__(argc, s, false);
+    char *id[2];
+    if (argc>2){
+        id[0] = info.id[11];
+        id[1] = argv[2][0];
+        if (id[0]==id[1]){
+    	    return false;
+        }
+    }
+    return info.lock;
+}
+
 
 static int
 count_flows(char *string, char *magic)
@@ -1532,6 +1553,13 @@ get_controllers(char *string, char *magic)
 static char *
 ofctl_pull_(int argc, char *argv[], bool aggregate)
 {
+	bool error;
+    //printf("%s\n", argv[2]);
+	error = reject_lock(argc, argv, aggregate);
+	if(error){
+		return "rejected";
+	}
+
     struct ofpbuf *request;
     struct vconn *vconn;
     char *magic = "actions=write_metadata:0xefddaabb/0xffffffff";
@@ -1629,7 +1657,6 @@ static void
 ofctl_lock(struct ovs_cmdl_context *ctx)
 {
 	char *tmp = ctx->argv[2];
-	printf("%s\n", ctx->argv[2]);
 	char *a = tmp;
 	char *pad;
 	if(strlen(a)>2){
@@ -1648,7 +1675,7 @@ ofctl_lock(struct ovs_cmdl_context *ctx)
 	strcat(concatString, a);
 	strcat(concatString, pad);
 	strcat(concatString, tmp2);
-	printf("%s\n", concatString);
+    //printf("%s\n", concatString);
 	char *id = malloc(strlen("metadata=0x00000000/0xffff0000") + 1);
 	strcpy(id,"metadata=0x");
 	strcat(id,a);
@@ -1663,14 +1690,14 @@ ofctl_lock(struct ovs_cmdl_context *ctx)
 
 }
 
-static void
+static bool
 ofctl_checklock(struct ovs_cmdl_context *ctx)
 {
     struct lock_info info = ofctl_checklock_flows__(ctx->argc, ctx->argv, false);
     if(info.lock){
-    	printf("%s\n",info.id);
+    	printf("%c\n",info.id[11]);
     }
-    return;
+    return info.lock;
 }
 
 
@@ -4181,7 +4208,7 @@ static const struct ovs_cmdl_command all_commands[] = {
 	{"unlock", "switch controller",2, 2, ofctl_unlock },
     { "check-lock", "switch",1, 2, ofctl_checklock },
 	{ "push", "switch id",3, 3, ofctl_push },
-	{ "pull", "switch",1, 1, ofctl_pull },
+	{ "pull", "switch",1, 2, ofctl_pull },
 	{ "remove", "switch id",2, 2, ofctl_remove },
 	{ "heart-beat", "switch id",2, 2, ofctl_heartbeat },
 	{ "check-alive-controller", "switch",1, 1, ofctl_check_alive_controller },
