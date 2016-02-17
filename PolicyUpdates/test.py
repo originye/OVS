@@ -78,6 +78,60 @@ def main_test():
     for p in processes:
         p.join()
 
+
+def controller_failure_test():
+    s = ["s1"]
+    clear_config(s)
+    manager1 = Manager()
+    manager2 = Manager()
+
+    Q1 = manager1.dict()
+    failure1 = manager1.Value('i', 0)
+    failed_list1 = manager1.list([])
+    Q2 = manager2.dict()
+    failure2 = manager2.Value('i', 0)
+    failed_list2 = manager2.list([])
+    processes = []
+    process1 = mp.Process(target=policy_update, args=(s, '1', Q1, failure1, failed_list1,))
+    print process1
+    processes.append(process1)
+    process2 = mp.Process(target=controller_failure_detection, args=(s, '1', failure1, failed_list1,))
+    print process2
+    processes.append(process2)
+    process = mp.Process(target=upon_new_policy, args=(s, '1', Q1,))
+    print process
+    processes.append(process)
+    process3 = mp.Process(target=policy_update, args=(s, '2', Q2, failure2, failed_list2,))
+    processes.append(process3)
+    print processes
+    process4 = mp.Process(target=controller_failure_detection, args=(s, '2', failure2, failed_list2,))
+    processes.append(process4)
+    print processes
+    process5 = mp.Process(target=upon_new_policy, args=(s, '2', Q2,))
+    processes.append(process5)
+# Run processes
+    print processes[5].name
+    for p in processes:
+        p.start()
+        print 'STARTING:', p, p.is_alive()
+    time.sleep(10)
+    print 'terminated'
+    processes[3].terminate()
+    processes[4].terminate()
+    print 'sleeping'
+    time.sleep(5)
+    processes[5].terminate()
+    print 'terminated 5'
+    time.sleep(2)
+
+    for p in processes:
+        print 'TERMINATED:', p, p.is_alive()
+# Exit the completed processes
+    for p in processes:
+        p.join()
+        print 'JOINED:', p, p.is_alive()
+
+controller_failure_test()
 #conflict_test()
 #policy_update_test(12)
 #simulator_test(1)
@@ -96,10 +150,11 @@ def main_test():
 # res = lock(["s1"]+["2"])
 # print "Locked" in res[1][0]
 # print "Locked" in res
-res = dump(['s1'])
-print res
-vlan = get_vlan(res, "1")
-print vlan
-for i in vlan:
-    flow = ['s1'] + [i]
-    remove(flow)
+# res = dump(['s1'])
+# print res
+# vlan = get_vlan(res, "1")
+# print vlan
+# for i in vlan:
+#     flow = ['s1'] + [i]
+#     remove(flow)
+#print pull(['s1'])

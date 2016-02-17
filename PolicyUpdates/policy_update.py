@@ -47,7 +47,9 @@ def policy_update(switch, controller_id, Q, failure, failed_list):
                     remove(s + [flow['dl_vlan']])
                     print "!!removed! ", flow['dl_vlan']
         else:
+            print "main failed_list:", failed_list
             controller_failure_handler(cid, s, failed_list)
+            time.sleep(5)
 
 
 # return True if no controller failure
@@ -62,33 +64,18 @@ def controller_failure_detection(switch, cid, failure, failed_list):
             print controllers2
             if (set(controllers1).intersection(controllers2)) != set(controllers1):
                 print "failed controller"
-                failed_list = list(set(controllers1) - set(controllers2))
+                for l in list(set(controllers1) - set(controllers2)):
+                    failed_list.append(l)
+                print "failed_list:", failed_list
                 failure.value = 1
             else:
                 failure.value = 0
+                #failed_list = []
             controllers1 = controllers2
             time.sleep(5)
         except ValueError:
             print ValueError
             print "controller failure detection failed"
-
-
-def policy_update_main(controller_id, Q):
-    manager = Manager()
-
-    failure = manager.Value()
-    processes = []
-    process1 = mp.Process(target=policy_update, args=(controller_id, Q, failure))
-    processes.append(process1)
-    process = mp.Process(target=controller_failure_detection, args=(controller_id, failure))
-    processes.append(process)
-# Run processes
-    for p in processes:
-        p.start()
-        print p, p.is_alive(), p.name
-# Exit the completed processes
-    for p in processes:
-        p.join()
 
 
 def upon_new_policy(switch, controller_id, Q):
@@ -142,7 +129,7 @@ def free_pid(pid, Q):
     try:
         del Q[pid]
     except KeyError:
-        print "Q error"
+        print "Q error:",pid, Q
     PID.append(pid)
     return True
 
@@ -161,10 +148,11 @@ def two_phase_update(policy):
 
 def getfromQ(pid, Q):
     # TODO: get the policy with pid from Q
+    policy = []
     try:
         policy = Q[pid]
     except KeyError:
-        print "No such pid"
+        print "No such pid:", pid, Q
     return policy
 
 
@@ -190,21 +178,25 @@ def switch_failure_handler():
 def controller_failure_handler(cid, s, failed_list):
     # TODO: handler switch failure and also how to detect switch failure
     print "controller failure!"
-    controllers = controller_detector(s)
+    print "in handler failed_list:", failed_list
     controller_ids = []
-    for c in controllers:
+    for c in failed_list:
         c1, c2 = c.split("x")
         controller_ids.append(c2)
-    res = lock(cid)
+    print "cid:", controller_ids
+    res = lock([cid])
     if "Locked" in res:
         return None
     else:
-        res = dump(s)
-        vlan = get_vlan(res, cid)
-        for i in vlan:
-            flow = s + [i]
-            remove(flow)
-        return None
+        for c in controller_ids:
+            res = dump(s)
+            vlan = get_vlan(res, c)
+            print "vlan:", vlan
+            for x in vlan:
+                flow = s + [x]
+                remove(flow)
+            unlock([cid])
+            return None
 
 
 # if detect conflict, return True
@@ -281,16 +273,18 @@ def alive_controller(flow):
         res = res[1][0]
         flows = res.split("\n")[1:]
         controllers = []
+        magic = "actions=write_metadata:0xccaffc0f/0xffffffff"
         for flow in flows:
-            items = flow.split(",")
-            for item in items:
-                item = item.strip()
-                if item == '':
-                    continue
-                if "metadata" in item:
-                    meta, action = item.split(" ")
-                    metadata, controller = meta.split("=")
-                    controllers.append(controller)
+            if magic in flow:
+                items = flow.split(",")
+                for item in items:
+                    item = item.strip()
+                    if item == '':
+                        continue
+                    if "metadata" in item:
+                        meta, action = item.split(" ")
+                        metadata, controller = meta.split("=")
+                        controllers.append(controller)
         print "controllers:", controllers
         return controllers
         #return subprocess.check_output(cmdline_args, stderr=subprocess.STDOUT)
@@ -342,7 +336,8 @@ def pull(switch):
                 key, value = item.split("=")
             except ValueError:
                 print "decoding error,", item
-                break
+                print res
+                continue
             if key in matching_fields_list:
                 if " " in value:
                     value, value1 = value.split(" ")
@@ -397,6 +392,23 @@ def clear_config(switch):
 def lock(flow):
     try:
         cmdline_args = ["ovs-ofctl"] + ["lock"] + flow + ["-O", "OpenFlow14"]
+        # logging.debug(str( cmdline_args))
+        p = subprocess.Popen(cmdline_args, stdout=subprocess.PIPE, stderr=subprocess.PIPE)
+        p.wait()
+        res = [p.returncode, p.communicate()]
+        # logging.debug(str( res))
+        return res[1][0]
+        # return subprocess.check_output(cmdline_args, stderr=subprocess.STDOUT)
+    except subprocess.CalledProcessError, e:
+        logging.warning(str( e))
+        # logging.warning(subprocess.Popen.communicate())
+        return None
+
+
+# ovs-ofctl unlock switch controller_id
+def unlock(flow):
+    try:
+        cmdline_args = ["ovs-ofctl"] + ["unlock"] + flow + ["-O", "OpenFlow14"]
         # logging.debug(str( cmdline_args))
         p = subprocess.Popen(cmdline_args, stdout=subprocess.PIPE, stderr=subprocess.PIPE)
         p.wait()

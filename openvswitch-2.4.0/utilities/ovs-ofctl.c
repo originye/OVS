@@ -1468,22 +1468,26 @@ get_policy(char *string, char *magic)
 		int p_length;
 		if(n==1){
 			p_length = strlen(pch2) - strlen(pch);
-			char *policy1 = malloc(p_length);
-			strncpy(policy1, pch2, p_length);
-			char *policy = malloc(p_length);
-			strncpy(policy, policy1, p_length);
-			return policy;
+			char *policy1 = malloc(p_length+1);
+			for (int i =0; i<p_length;i++){
+				policy1[i] = pch2[i];
+			}
+			policy1[p_length] = NULL;
+			//printf("%s\n",policy1);
+			return policy1;
 		}else{
 		    while( pch1 < pch ){
 		    	pch2 = pch1;
 		    	pch1 = strstr(pch1+5,"cookie");
 		    }
 		    p_length = strlen(pch2) - strlen(pch);
-		    char *policy1 = malloc(p_length);
-		    strncpy(policy1, pch2, p_length);
-		    char *policy = malloc(p_length);
-		    strncpy(policy, policy1, p_length);
-		    return  policy;
+		    char *policy1 = malloc(p_length+1);
+		    for (int i =0; i<p_length;i++){
+		    	policy1[i] = pch2[i];
+		    }
+		    policy1[p_length] = NULL;
+		    //printf("%s\n",policy1);
+		    return  policy1;
 		}
 
 	}else{
@@ -1594,6 +1598,7 @@ ofctl_pull_(int argc, char *argv[], bool aggregate)
             //printf("print_and_free\n");
             //return true;
             policy = get_policy(string, magic);
+            free(string);
             ofpraw_decode(&raw, reply->data);
             if (ofptype_from_ofpraw(raw) == OFPTYPE_ERROR) {
                 done = true;
@@ -1743,6 +1748,7 @@ ofctl_pull(struct ovs_cmdl_context *ctx)
 {
 	char *policy = ofctl_pull_(ctx->argc, ctx->argv, false);
     printf("%s\n",policy);
+    //free(policy);
 
 }
 
