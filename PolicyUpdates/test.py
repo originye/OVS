@@ -93,24 +93,18 @@ def controller_failure_test():
     failed_list2 = manager2.list([])
     processes = []
     process1 = mp.Process(target=policy_update, args=(s, '1', Q1, failure1, failed_list1,))
-    print process1
     processes.append(process1)
     process2 = mp.Process(target=controller_failure_detection, args=(s, '1', failure1, failed_list1,))
-    print process2
     processes.append(process2)
     process = mp.Process(target=upon_new_policy, args=(s, '1', Q1,))
-    print process
     processes.append(process)
     process3 = mp.Process(target=policy_update, args=(s, '2', Q2, failure2, failed_list2,))
     processes.append(process3)
-    print processes
     process4 = mp.Process(target=controller_failure_detection, args=(s, '2', failure2, failed_list2,))
     processes.append(process4)
-    print processes
     process5 = mp.Process(target=upon_new_policy, args=(s, '2', Q2,))
     processes.append(process5)
 # Run processes
-    print processes[5].name
     for p in processes:
         p.start()
         print 'STARTING:', p, p.is_alive()

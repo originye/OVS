@@ -1354,7 +1354,7 @@ struct lock_info{
 };
 
 /* Additional functions*/
-
+//TODO not return whole flows, but only return controller ids
 static struct lock_info
 ofctl_checklock_flows__(int argc, char *argv[], bool aggregate)
 {

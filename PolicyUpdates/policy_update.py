@@ -45,6 +45,7 @@ def policy_update(switch, controller_id, Q, failure, failed_list):
                     free_pid(flow['pid'], Q)
                 else:
                     remove(s + [flow['dl_vlan']])
+                    free_pid(flow['pid'], Q)
                     print "!!removed! ", flow['dl_vlan']
         else:
             print "main failed_list:", failed_list
@@ -70,7 +71,8 @@ def controller_failure_detection(switch, cid, failure, failed_list):
                 failure.value = 1
             else:
                 failure.value = 0
-                #failed_list = []
+                while len(failed_list):
+                    failed_list.pop()
             controllers1 = controllers2
             time.sleep(5)
         except ValueError:
@@ -131,6 +133,7 @@ def free_pid(pid, Q):
     except KeyError:
         print "Q error:",pid, Q
     PID.append(pid)
+    print PID
     return True
 
 
