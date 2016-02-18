@@ -1,7 +1,7 @@
 from policy_update import *
 from seq_trie import Seq, SeqTrie
 import multiprocessing as mp
-from multiprocessing import  Manager
+from multiprocessing import Manager
 
 
 def conflict_test():
@@ -52,7 +52,12 @@ def heartbeat_test():
     s = ["s1"]
     heart_beat(s, 1)
     heart_beat(s, 2)
-    controller_detector(s)
+    while True:
+        heart_beat(s, 1)
+        c1 = controller_detector(s)
+        heart_beat(s, 2)
+        c2 = controller_detector(s)
+        time.sleep(5)
 
 
 def main_test():
@@ -80,7 +85,7 @@ def main_test():
 
 
 def controller_failure_test():
-    s = ["s1"]
+    s = ["s5"]
     clear_config(s)
     manager1 = Manager()
     manager2 = Manager()
@@ -127,7 +132,59 @@ def controller_failure_test():
         p.join()
         print 'JOINED:', p, p.is_alive()
 
-controller_failure_test()
+
+def controller_switch_failure_test():
+    s = ["s5"]
+    clear_config(s)
+    manager1 = Manager()
+    manager2 = Manager()
+
+    Q1 = manager1.dict()
+    failure1 = manager1.Value('i', 0)
+    failed_list1 = manager1.list([])
+    PID1 = manager1.list(['%02d' % i for i in xrange(1, 51)])
+    s1 = manager1.list(['s5'])
+    Q2 = manager2.dict()
+    failure2 = manager2.Value('i', 0)
+    failed_list2 = manager2.list([])
+    PID2 = manager2.list(['%02d' % i for i in xrange(1, 51)])
+    s2 = manager2.list(['s5'])
+    processes = []
+    process1 = mp.Process(target=policy_update, args=(s1, '1', Q1, PID1, failure1, failed_list1,))
+    processes.append(process1)
+    process2 = mp.Process(target=controller_failure_detection, args=(s1, '1', failure1, failed_list1,))
+    processes.append(process2)
+    process = mp.Process(target=upon_new_policy, args=(s1, '1', Q1, PID1,))
+    processes.append(process)
+    process3 = mp.Process(target=policy_update, args=(s2, '2', Q2, PID2, failure2, failed_list2,))
+    processes.append(process3)
+    process4 = mp.Process(target=controller_failure_detection, args=(s2, '2', failure2, failed_list2,))
+    processes.append(process4)
+    process5 = mp.Process(target=upon_new_policy, args=(s2, '2', Q2, PID2,))
+    processes.append(process5)
+# Run processes
+    for p in processes:
+        p.start()
+        print 'STARTING:', p, p.is_alive()
+    time.sleep(10)
+    print 'terminated'
+    processes[3].terminate()
+    processes[4].terminate()
+    print 'sleeping'
+    time.sleep(5)
+    processes[5].terminate()
+    print 'terminated 5'
+    time.sleep(2)
+
+    for p in processes:
+        print 'TERMINATED:', p, p.is_alive()
+
+    for p in processes:
+        p.join()
+        print 'JOINED:', p, p.is_alive()
+
+#controller_failure_test()
+controller_switch_failure_test()
 #conflict_test()
 #policy_update_test(12)
 #simulator_test(1)

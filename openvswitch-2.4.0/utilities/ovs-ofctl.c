@@ -1728,18 +1728,65 @@ ofctl_pull(struct ovs_cmdl_context *ctx)
 
 }
 
+
+static char *
+gen_ran_inport(int r)
+{
+	char *inport1 = ",in_port=1";
+	char *inport2 = ",in_port=2";
+	char *inport3 = ",in_port=3";
+	char *inport4 = ",in_port=4";
+	char *inport5 = ",in_port=5";
+	char *inport6 = ",in_port=6";
+	char *inport7 = ",in_port=7";
+	char *inport8 = ",in_port=8";
+	char *inport9 = ",in_port=9";
+	char *inport10 = ",in_port=10";
+	switch(r){
+	case 1:
+		return inport1;
+	case 2:
+		return inport2;
+	case 3:
+		return inport3;
+	case 4:
+		return inport4;
+	case 5:
+		return inport5;
+	case 6:
+		return inport6;
+	case 7:
+		return inport7;
+	case 8:
+		return inport8;
+	case 9:
+		return inport9;
+	case 10:
+		return inport10;
+	default:
+		return inport1;
+	}
+}
+
+
+
 /* Heart beat mechanism: send heart beat message from controller,
- * store the information in table 241 with idle_timeout 30 seconds.
- * Need to refresh within 30 s */
+ * store the information in table 241 with hard_timeout 30 seconds.
+ * Need to refresh within 30 s
+ * idle_timeout will not be refresh by each heart beat*/
 static void
 ofctl_heartbeat(struct ovs_cmdl_context *ctx)
 {
+	srand(time(NULL));
+	int r = rand()%9;
 	char *tmp = ctx->argv[2];
 	printf("%s\n", ctx->argv[2]);
 	char *a = tmp;
-	char *tmp1 = "table=241,idle_timeout=30,metadata=0x";
-	char *tmp2 = ",check_overlap,action=write_metadata:0xccaffc0f/0xffffffff";
-	char *concatString =  malloc(strlen(a)+strlen(tmp1)+strlen(tmp2)+1);
+	//char *tmp1 = "table=241,idle_timeout=30,metadata=0x";
+	char *tmp1 = "table=241,hard_timeout=30,metadata=0x";
+	//char *inport = gen_ran_inport(r);
+	char *tmp2 = ",action=write_metadata:0xccaffc0f/0xffffffff";
+	char *concatString =  malloc(strlen(a)+strlen(tmp1)+strlen(tmp2)+2);
 	strcpy(concatString, tmp1);
 	strcat(concatString, a);
 	strcat(concatString, tmp2);
@@ -1747,6 +1794,7 @@ ofctl_heartbeat(struct ovs_cmdl_context *ctx)
 	ofctl_flow_mod_2(ctx->argc, ctx->argv, concatString, OFPFC_ADD);
 
 }
+
 
 //TODO not return whole flows, but only return controller ids
 static char *
@@ -1782,10 +1830,8 @@ ofctl_check_alive_controller_(int argc, char *argv[], bool aggregate)
 			enum ofpraw raw;
 			char *string;
 			string = ofp_to_string(reply->data, reply->size, verbosity + 1);
-			//ofp_print(stdout, reply->data, reply->size, verbosity + 1);
-			//printf("print_and_free\n");
-			//return true;
 			controller = get_controllers(string, magic);
+			//print_and_free(stdout, string);
             //controller = string;
 			ofpraw_decode(&raw, reply->data);
 			if (ofptype_from_ofpraw(raw) == OFPTYPE_ERROR) {
@@ -1812,8 +1858,8 @@ ofctl_check_alive_controller_(int argc, char *argv[], bool aggregate)
 static void
 ofctl_check_alive_controller(struct ovs_cmdl_context *ctx)
 {
-	char *controllers = ofctl_check_alive_controller_(ctx->argc, ctx->argv, false);
-    printf("%s\n",controllers);
+	char *controller = ofctl_check_alive_controller_(ctx->argc, ctx->argv, false);
+    printf("%s\n",controller);
 }
 
 

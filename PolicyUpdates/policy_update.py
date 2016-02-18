@@ -5,41 +5,45 @@ import time, signal
 import random
 from seq_trie import Seq, SeqTrie
 import multiprocessing as mp
-from multiprocessing import  Manager
+from multiprocessing import Manager
 
 last_pull = []
 #s = ["s1"]
 #PID = ['%02d' % i for i in xrange(1, 51)]  #['01','02',...]
 matching_fields_list = ['dl_vlan', 'metadata', 'in_port', 'dl_src', 'dl_dst', 'nw_src', 'nw_dst']
 compare_list = ['metadata', 'in_port', 'dl_src', 'dl_dst', 'nw_src', 'nw_dst']
+backup_switch = ['s1', 's2', 's3', 's4', 's5']
 
 
 # !! controller id  < 10, Q: store all the to-be-installed policies; failure: flag for controller failure
 def policy_update(switch, controller_id, Q, PID, failure, failed_list):
     # cid = '%d' % controller_id
     cid = controller_id
-    s = switch
     seq = Seq()
     seq_trie = SeqTrie(seq)
     while True:
+        if isinstance(switch, type(Manager().list())):
+            s = [switch[0]]
+        else:
+            s = switch
         if not failure.value:
             while True:
                 try:
                     flow = pull(s)
                     if not flow:
                         time.sleep(1)
-                        print "sleep"
+                        print "sleep", flow
                         continue
                     else:
                         break
                 except NameError:
                     print "SwitchFailure"
-                    switch_failure_handler()
-                    raise
+                    s = switch_failure_handler(switch)
+                    time.sleep(1)
+                    continue
             if flow['cid'] == cid:
                 if not conflict_detection(seq_trie, flow):
                     p = getfromQ(flow['pid'], Q)
-                    print "Policy:",p
                     #two_phase_update(p)
                     remove(s + [flow['dl_vlan']])
                     seq_trie = policy_store_to_trie(seq, flow)
@@ -49,23 +53,31 @@ def policy_update(switch, controller_id, Q, PID, failure, failed_list):
                     free_pid(flow['pid'], Q, PID)
                     print "!!removed! ", flow['dl_vlan']
         else:
-            print "main failed_list:", failed_list
+            #print "main failed_list:", failed_list
             controller_failure_handler(cid, s, failed_list)
-            time.sleep(5)
+            time.sleep(2)
 
 
 # return True if no controller failure
 def controller_failure_detection(switch, cid, failure, failed_list):
     # TODO: heartbeat mechanisms and failure detection
-    s = switch
+    if isinstance(switch, type(Manager().list())):
+        s = [switch[0]]
+    else:
+        s = switch
     controllers1 = controller_detector(s)
     while True:
         try:
+            if isinstance(switch, type(Manager().list())):
+                s = [switch[0]]
+            else:
+                s = switch
             heart_beat(s, cid)
             controllers2 = controller_detector(s)
             print controllers2
             if (set(controllers1).intersection(controllers2)) != set(controllers1):
-                print "failed controller detected"
+                print "!!!!!!!!!!!!!!!!!failed controller detected,", cid
+                print dump(s)
                 for l in list(set(controllers1) - set(controllers2)):
                     failed_list.append(l)
                 print "failed_list:", failed_list
@@ -75,7 +87,7 @@ def controller_failure_detection(switch, cid, failure, failed_list):
                 while len(failed_list):
                     failed_list.pop()
             controllers1 = controllers2
-            time.sleep(5)
+            time.sleep(2)
         except ValueError:
             print ValueError
             print "controller failure detection failed"
@@ -84,12 +96,16 @@ def controller_failure_detection(switch, cid, failure, failed_list):
 def upon_new_policy(switch, controller_id, Q, PID):
     # cid = '1%d' % controller_id
     cid = '1%s' % controller_id
-    s = switch
     while True:
+        if isinstance(switch, type(Manager().list())):
+            s = [switch[0]]
+        else:
+            s = switch
         flow = simulator()
         pid = PID.pop(0)
         vlan = [cid + pid]
         Q[pid] = flow
+        #print "new policy:", s
         push(s + vlan + [flow])
         time.sleep(5)
 
@@ -162,20 +178,28 @@ def getfromQ(pid, Q):
 def heart_beat(switch, cid):
     cid = '%s' % cid
     flow = switch + [cid]
-    send_heart_beat(flow)
-    return True
+    res = send_heart_beat(flow)
+    if res[0]:
+        print "heart beat failed"
+        return False
+    else:
+        return True
 
 
 def controller_detector(switch):
     flow = switch
     controllers = alive_controller(flow)
-    print "detector:", controllers
+    #print "detector:", controllers
     return controllers
 
 
-def switch_failure_handler():
+def switch_failure_handler(s):
     # TODO: handler switch failure and also how to detect switch failure
-    return True
+    backup_switch.remove(s[0])
+    s.remove(s[0])
+    s.append(backup_switch[0])
+    print "switch failure handler:", s
+    return [s[0]]
 
 
 def controller_failure_handler(cid, s, failed_list):
@@ -268,8 +292,12 @@ def alive_controller(flow):
         res = [p.returncode, p.communicate()]
         #logging.debug(str( res))
         res = res[1][0]
-        controllers = res.split(" ")
-        controllers.remove("\n")
+        print "alive:", res
+        if len(res) > 0:
+            controllers = res.split(" ")
+            controllers.remove("\n")
+        else:
+            controllers = []
         #print "controllers:", controllers
         return controllers
         #return subprocess.check_output(cmdline_args, stderr=subprocess.STDOUT)
@@ -306,6 +334,8 @@ def pull(switch):
         p = subprocess.Popen(cmdline_args, stdout=subprocess.PIPE, stderr=subprocess.PIPE)
         p.wait()
         res1 = [p.returncode, p.communicate()]
+        if res1[0]:
+            raise NameError("switch failed")
         #logging.debug(str( res))
         res = res1[1][0]
         #res = res[:-2]
