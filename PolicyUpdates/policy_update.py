@@ -39,6 +39,7 @@ def policy_update(switch, controller_id, Q, PID, failure, failed_list):
             if flow['cid'] == cid:
                 if not conflict_detection(seq_trie, flow):
                     p = getfromQ(flow['pid'], Q)
+                    print "Policy:",p
                     #two_phase_update(p)
                     remove(s + [flow['dl_vlan']])
                     seq_trie = policy_store_to_trie(seq, flow)
@@ -64,7 +65,7 @@ def controller_failure_detection(switch, cid, failure, failed_list):
             controllers2 = controller_detector(s)
             print controllers2
             if (set(controllers1).intersection(controllers2)) != set(controllers1):
-                print "failed controller"
+                print "failed controller detected"
                 for l in list(set(controllers1) - set(controllers2)):
                     failed_list.append(l)
                 print "failed_list:", failed_list
@@ -131,9 +132,8 @@ def free_pid(pid, Q, PID):
     try:
         del Q[pid]
     except KeyError:
-        print "Q error:",pid, Q
+        print "Q error:", pid, Q
     PID.append(pid)
-    print PID
     return True
 
 
@@ -169,7 +169,7 @@ def heart_beat(switch, cid):
 def controller_detector(switch):
     flow = switch
     controllers = alive_controller(flow)
-    #print controllers
+    print "detector:", controllers
     return controllers
 
 
@@ -181,17 +181,11 @@ def switch_failure_handler():
 def controller_failure_handler(cid, s, failed_list):
     # TODO: handler switch failure and also how to detect switch failure
     print "controller failure!"
-    print "in handler failed_list:", failed_list
-    controller_ids = []
-    for c in failed_list:
-        c1, c2 = c.split("x")
-        controller_ids.append(c2)
-    print "cid:", controller_ids
     res = lock([cid])
     if "Locked" in res:
         return None
     else:
-        for c in controller_ids:
+        for c in failed_list:
             res = dump(s)
             vlan = get_vlan(res, c)
             print "vlan:", vlan
@@ -274,21 +268,9 @@ def alive_controller(flow):
         res = [p.returncode, p.communicate()]
         #logging.debug(str( res))
         res = res[1][0]
-        flows = res.split("\n")[1:]
-        controllers = []
-        magic = "actions=write_metadata:0xccaffc0f/0xffffffff"
-        for flow in flows:
-            if magic in flow:
-                items = flow.split(",")
-                for item in items:
-                    item = item.strip()
-                    if item == '':
-                        continue
-                    if "metadata" in item:
-                        meta, action = item.split(" ")
-                        metadata, controller = meta.split("=")
-                        controllers.append(controller)
-        print "controllers:", controllers
+        controllers = res.split(" ")
+        controllers.remove("\n")
+        #print "controllers:", controllers
         return controllers
         #return subprocess.check_output(cmdline_args, stderr=subprocess.STDOUT)
     except subprocess.CalledProcessError, e:

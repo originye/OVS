@@ -398,6 +398,9 @@ usage(void)
     	   "  unlock switch controller_id unlock switch from controller_id\n",
 		   "  push switch id content      push content to the switch with unique id\n",
 		   "  pull switch                 pull policy from the switch\n",
+		   "  remove switch id            remove policy from the switch\n",
+		   "  heart-beat switch cid       heart beat message from controller cid\n",
+		   "  check-alive-controller switch  return all the active controoler on the switch\n",
            program_name, program_name);
     vconn_usage(true, false, false);
     daemon_usage();
@@ -1498,54 +1501,28 @@ get_policy(char *string, char *magic)
 static char *
 get_controllers(char *string, char *magic)
 {
-
-// TODO segmentation fault here!
 	int n = 0;
 	n = count_flows(string, magic);
-	printf("%d\n",n);
-	char *controller = malloc(2+2);
 	if (n > 0){
 		char *pch = strstr(string, magic);
 		char *pch1 = strstr(string,"metadata");
 		char *pch2 = strstr(string,"metadata");
-		int p_length;
-		/*
-		for(int i=1;i<=n;i++){
+		int c_length = 11;
+		int p_length = 2;
+		char *controller = malloc(n*p_length+1);
+		for(int i=0;i<n;i++){
 		    while( pch1 < pch ){
 		    	pch2 = pch1;
 		    	pch1 = strstr(pch1+1,"metadata");
 		    }
-		    p_length = 2;
-		    char *controller1 = malloc(p_length+1);
-		    if (i==1){
-		    	printf("%s\n%s\n",pch2, pch2+11);
-		    	memcpy(controller1, pch2+strlen("metadata=0x"), strlen("01"));
-		    	strcat(controller1, "\0");
-		    	printf("%s\n",controller1);
-		    	strcpy(controller, controller1);
-		    	printf("%s\n",controller);
-		    }else{
-		    	strcat(controller, ",");
-		    	strncpy(controller1, pch2+11, p_length);
-		    	strcat(controller,controller1);
-		    	printf("%s\n",controller);
-		    }
-		}*/
-		while( pch1 < pch ){
-			pch2 = pch1;
-			pch1 = strstr(pch1+1,"metadata");
+		    controller[p_length*i] = pch2[c_length];
+		    controller[p_length*i+1] = pch2[c_length+1];
+		    pch1 = strstr(pch+1,"metadata");
+		    pch2 = strstr(pch+1,"metadata");
+		    pch = strstr(pch+1,magic);
 		}
-		p_length = 2;
-		char *controller1 = malloc(p_length+1);
-
-		printf("%s\n%s\n",pch2, pch2+11);
-		strncpy(controller1, pch2+strlen("metadata=0x"), strlen("01"));
-		printf("%s\n",controller1);
-		strcpy(controller, controller1);
-		printf("%s\n",controller);
-
-		printf("%s\n",controller);
-		return  controller;
+		controller[n*p_length] = NULL;
+		return controller;
 
 	}else{
 		char *controller = "";
@@ -1751,6 +1728,9 @@ ofctl_pull(struct ovs_cmdl_context *ctx)
 
 }
 
+/* Heart beat mechanism: send heart beat message from controller,
+ * store the information in table 241 with idle_timeout 30 seconds.
+ * Need to refresh within 30 s */
 static void
 ofctl_heartbeat(struct ovs_cmdl_context *ctx)
 {
@@ -1805,8 +1785,8 @@ ofctl_check_alive_controller_(int argc, char *argv[], bool aggregate)
 			//ofp_print(stdout, reply->data, reply->size, verbosity + 1);
 			//printf("print_and_free\n");
 			//return true;
-			//controller = get_controllers(string, magic);
-			controller = string;
+			controller = get_controllers(string, magic);
+            //controller = string;
 			ofpraw_decode(&raw, reply->data);
 			if (ofptype_from_ofpraw(raw) == OFPTYPE_ERROR) {
 				done = true;

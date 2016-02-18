@@ -131,6 +131,7 @@ controller_failure_test()
 #conflict_test()
 #policy_update_test(12)
 #simulator_test(1)
+#heartbeat_test()
 # try:
 #     main_test()
 # except ValueError:
