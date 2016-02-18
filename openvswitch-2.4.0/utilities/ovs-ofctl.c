@@ -1354,7 +1354,6 @@ struct lock_info{
 };
 
 /* Additional functions*/
-//TODO not return whole flows, but only return controller ids
 static struct lock_info
 ofctl_checklock_flows__(int argc, char *argv[], bool aggregate)
 {
@@ -1769,7 +1768,7 @@ ofctl_heartbeat(struct ovs_cmdl_context *ctx)
 
 }
 
-
+//TODO not return whole flows, but only return controller ids
 static char *
 ofctl_check_alive_controller_(int argc, char *argv[], bool aggregate)
 {

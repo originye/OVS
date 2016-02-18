@@ -9,13 +9,13 @@ from multiprocessing import  Manager
 
 last_pull = []
 #s = ["s1"]
-PID = ['%02d' % i for i in xrange(1, 51)]  #['1','2',...]
+#PID = ['%02d' % i for i in xrange(1, 51)]  #['01','02',...]
 matching_fields_list = ['dl_vlan', 'metadata', 'in_port', 'dl_src', 'dl_dst', 'nw_src', 'nw_dst']
 compare_list = ['metadata', 'in_port', 'dl_src', 'dl_dst', 'nw_src', 'nw_dst']
 
 
 # !! controller id  < 10, Q: store all the to-be-installed policies; failure: flag for controller failure
-def policy_update(switch, controller_id, Q, failure, failed_list):
+def policy_update(switch, controller_id, Q, PID, failure, failed_list):
     # cid = '%d' % controller_id
     cid = controller_id
     s = switch
@@ -42,10 +42,10 @@ def policy_update(switch, controller_id, Q, failure, failed_list):
                     #two_phase_update(p)
                     remove(s + [flow['dl_vlan']])
                     seq_trie = policy_store_to_trie(seq, flow)
-                    free_pid(flow['pid'], Q)
+                    free_pid(flow['pid'], Q, PID)
                 else:
                     remove(s + [flow['dl_vlan']])
-                    free_pid(flow['pid'], Q)
+                    free_pid(flow['pid'], Q, PID)
                     print "!!removed! ", flow['dl_vlan']
         else:
             print "main failed_list:", failed_list
@@ -80,7 +80,7 @@ def controller_failure_detection(switch, cid, failure, failed_list):
             print "controller failure detection failed"
 
 
-def upon_new_policy(switch, controller_id, Q):
+def upon_new_policy(switch, controller_id, Q, PID):
     # cid = '1%d' % controller_id
     cid = '1%s' % controller_id
     s = switch
@@ -127,7 +127,7 @@ def policy_generator():
     return flow
 
 
-def free_pid(pid, Q):
+def free_pid(pid, Q, PID):
     try:
         del Q[pid]
     except KeyError:
