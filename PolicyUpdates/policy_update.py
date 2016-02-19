@@ -437,6 +437,7 @@ def unlock(flow):
         return None
 
 
+# dump all the policies on the switch
 def dump(switch):
     try:
         cmdline_args = ["ovs-ofctl"] + ["dump-flows"] + switch + ["table=246"] + ["-O", "OpenFlow14"]
