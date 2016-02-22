@@ -1649,7 +1649,7 @@ ofctl_lock(struct ovs_cmdl_context *ctx)
 	}else{
 		pad = "00";
 	}
-	char *tmp1 = "table=240,metadata=0x";
+	char *tmp1 = "table=240,hard_timeout=20,metadata=0x";
 	char *tmp2 = "00000/0xffff0000,check_overlap,action=write_metadata:0xddfeec0f/0xffffffff";
 	char *concatString =  malloc(strlen(a)+strlen(tmp1)+strlen(pad)+strlen(tmp2)+1);
 	strcpy(concatString, tmp1);
