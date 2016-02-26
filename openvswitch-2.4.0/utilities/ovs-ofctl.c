@@ -4243,7 +4243,7 @@ static const struct ovs_cmdl_command all_commands[] = {
 	{ "remove", "switch id",2, 2, ofctl_remove },
 	{ "heart-beat", "switch id",2, 2, ofctl_heartbeat },
 	{ "check-alive-controller", "switch",1, 1, ofctl_check_alive_controller },
-
+	/*TODO add stamp and check functions*/
     { NULL, NULL, 0, 0, NULL },
 };
 
