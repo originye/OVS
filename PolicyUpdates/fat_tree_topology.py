@@ -9,6 +9,8 @@ from mininet.topo import Topo
 from mininet.util import dumpNodeConnections
 import logging
 import os
+import unittest
+import pexpect
 
 logging.basicConfig(level=logging.DEBUG)
 logger = logging.getLogger( __name__ )
@@ -88,18 +90,18 @@ class HugeTopo(Topo):
     def createLink(self):
         logger.debug("Create Core to Agg")
         for x in range(0, self.iAggLayerSwitch, 2):
-            self.addLink(self.CoreSwitchList[0], self.AggSwitchList[x], bw=1000, loss=5)
-            self.addLink(self.CoreSwitchList[1], self.AggSwitchList[x], bw=1000, loss=5)
+            self.addLink(self.CoreSwitchList[0], self.AggSwitchList[x], bw=1000, loss=5, use_htb=True)
+            self.addLink(self.CoreSwitchList[1], self.AggSwitchList[x], bw=1000, loss=5, use_htb=True)
         for x in range(1, self.iAggLayerSwitch, 2):
-            self.addLink(self.CoreSwitchList[2], self.AggSwitchList[x], bw=1000, loss=5)
-            self.addLink(self.CoreSwitchList[3], self.AggSwitchList[x], bw=1000, loss=5)
+            self.addLink(self.CoreSwitchList[2], self.AggSwitchList[x], bw=1000, loss=5, use_htb=True)
+            self.addLink(self.CoreSwitchList[3], self.AggSwitchList[x], bw=1000, loss=5, use_htb=True)
 
         logger.debug("Create Agg to Edge")
         for x in range(0, self.iAggLayerSwitch, 2):
-            self.addLink(self.AggSwitchList[x], self.EdgeSwitchList[x], bw=100)
-            self.addLink(self.AggSwitchList[x], self.EdgeSwitchList[x+1], bw=100)
-            self.addLink(self.AggSwitchList[x+1], self.EdgeSwitchList[x], bw=100)
-            self.addLink(self.AggSwitchList[x+1], self.EdgeSwitchList[x+1], bw=100)
+            self.addLink(self.AggSwitchList[x], self.EdgeSwitchList[x], bw=1000, delay='10ms')
+            self.addLink(self.AggSwitchList[x], self.EdgeSwitchList[x+1], bw=1000, delay='10ms')
+            self.addLink(self.AggSwitchList[x+1], self.EdgeSwitchList[x], bw=1000, delay='10ms')
+            self.addLink(self.AggSwitchList[x+1], self.EdgeSwitchList[x+1], bw=1000, delay='10ms')
 
         logger.debug("Create Edge to Host")
         for x in range(0, self.iEdgeLayerSwitch):
@@ -155,10 +157,16 @@ def createTopo():
     logging.debug("LV1 Start Mininet")
     CONTROLLER_IP = "127.0.0.1"
     CONTROLLER_PORT = 6633
+    c0 = Controller('c0', port=6633)
+    c1 = Controller('c1', port=6634)
+    c2 = Controller('c2', port=6635)
+    c3 = Controller('c3', port=6636)
+    c5 = RemoteController('c2', ip='127.0.0.1')
     net = Mininet(topo=topo, link=TCLink, controller=None)
-    net.addController('controller', controller=RemoteController, ip=CONTROLLER_IP, port=CONTROLLER_PORT)
+    #net.addController('controller', controller=RemoteController, ip=CONTROLLER_IP, port=CONTROLLER_PORT)
+    for c in [c0, c1, c2, c3 ]:
+        net.addController(c)
     net.start()
-
     logger.debug("LV1 dumpNode")
     enableSTP()
     dumpNodeConnections(net.hosts)
@@ -168,6 +176,9 @@ def createTopo():
 
 
     CLI(net)
+    p = pexpect.spawn( 'controller test' )
+    # but first a simple ping test
+    p.sendline( 'xterm c0' )
     net.stop()
 
 if __name__ == '__main__':

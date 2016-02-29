@@ -61,19 +61,20 @@ def heartbeat_test():
 
 
 def main_test():
-    s = ["s1"]
+    s = ["1001"]
     #clear_config(s)
     manager = Manager()
 
     Q = manager.dict()
     failure = manager.Value('i', 0)
     failed_list = manager.list()
+    PID = manager.list(['%02d' % i for i in xrange(1, 51)])
     processes=[]
-    process1 = mp.Process(target=policy_update, args=(s, '1', Q, failure, failed_list,))
+    process1 = mp.Process(target=policy_update, args=(s, '1', Q, PID, failure, failed_list,))
     processes.append(process1)
     process2 = mp.Process(target=controller_failure_detection, args=(s, '1', failure, failed_list,))
     processes.append(process2)
-    process = mp.Process(target=upon_new_policy, args=(s, '1', Q,))
+    process = mp.Process(target=upon_new_policy, args=(s, '1', Q, PID, ))
     processes.append(process)
 # Run processes
     for p in processes:
@@ -183,8 +184,9 @@ def controller_switch_failure_test():
         p.join()
         print 'JOINED:', p, p.is_alive()
 
+main_test()
 #controller_failure_test()
-controller_switch_failure_test()
+#controller_switch_failure_test()
 #conflict_test()
 #policy_update_test(12)
 #simulator_test(1)

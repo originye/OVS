@@ -12,7 +12,7 @@ last_pull = []
 #PID = ['%02d' % i for i in xrange(1, 51)]  #['01','02',...]
 matching_fields_list = ['dl_vlan', 'metadata', 'in_port', 'dl_src', 'dl_dst', 'nw_src', 'nw_dst']
 compare_list = ['metadata', 'in_port', 'dl_src', 'dl_dst', 'nw_src', 'nw_dst']
-backup_switch = ['s1', 's2', 's3', 's4', 's5']
+backup_switch = ['1001', '1002', '1003', '1004']
 
 
 # !! controller id  < 10, Q: store all the to-be-installed policies; failure: flag for controller failure
