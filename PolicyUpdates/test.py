@@ -70,11 +70,11 @@ def main_test():
     failed_list = manager.list()
     PID = manager.list(['%02d' % i for i in xrange(1, 51)])
     processes=[]
-    process1 = mp.Process(target=policy_update, args=(s, '1', Q, PID, failure, failed_list,))
+    process1 = mp.Process(target=policy_update, args=(s, '2', Q, PID, failure, failed_list,))
     processes.append(process1)
-    process2 = mp.Process(target=controller_failure_detection, args=(s, '1', failure, failed_list,))
+    process2 = mp.Process(target=controller_failure_detection, args=(s, '2', failure, failed_list,))
     processes.append(process2)
-    process = mp.Process(target=upon_new_policy, args=(s, '1', Q, PID, ))
+    process = mp.Process(target=upon_new_policy, args=(s, '2', Q, PID, ))
     processes.append(process)
 # Run processes
     for p in processes:

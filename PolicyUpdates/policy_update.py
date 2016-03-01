@@ -6,6 +6,10 @@ import random
 from seq_trie import Seq, SeqTrie
 import multiprocessing as mp
 from multiprocessing import Manager
+import logging
+
+
+logging.basicConfig(filename='test.log', level=logging.DEBUG)
 
 last_pull = []
 #s = ["s1"]
@@ -31,8 +35,8 @@ def policy_update(switch, controller_id, Q, PID, failure, failed_list):
                 try:
                     flow = pull(s)
                     if not flow:
-                        time.sleep(1)
-                        print "sleep", flow
+                        #time.sleep(0.01)
+                        #print "sleep"
                         continue
                     else:
                         break
@@ -110,6 +114,8 @@ def upon_new_policy(switch, controller_id, Q, PID):
         time.sleep(5)
 
 
+
+
 # simulator to generating new policy
 def simulator():
     flow = policy_generator()
@@ -162,6 +168,19 @@ def policy_store_to_trie(seq, flow):
 
 def two_phase_update(policy):
     # TODO: first update internal then ingress
+    try:
+        cmdline_args = ["ovs-ofctl"] + ["add-flow"] + [policy] + ["-O", "OpenFlow14"]
+        # logging.debug(str( cmdline_args))
+        p = subprocess.Popen(cmdline_args, stdout=subprocess.PIPE, stderr=subprocess.PIPE)
+        p.wait()
+        res = [p.returncode, p.communicate()]
+        # logging.debug(str( res))
+        return res
+        # return subprocess.check_output(cmdline_args, stderr=subprocess.STDOUT)
+    except subprocess.CalledProcessError, e:
+        logging.warning(str( e))
+        # logging.warning(subprocess.Popen.communicate())
+        return None
     return True
 
 
@@ -470,3 +489,148 @@ def get_vlan(res, cid):
                     if value[1:2] == cid:
                         vlan.append(value)
         return vlan
+
+
+################
+# TEST
+###############
+def inband(switch, controller_id, Q, PID, n):
+    # cid = '%d' % controller_id
+    cid = controller_id
+    i = 0
+    seq = Seq()
+    seq_trie = SeqTrie(seq)
+    while True:
+        if isinstance(switch, type(Manager().list())):
+            s = [switch[0]]
+        else:
+            s = switch
+        while True:
+            try:
+                flow = pull(s)
+                if not flow:
+                    time.sleep(0.01)
+                    print "sleep"
+                    continue
+                else:
+                    break
+            except NameError:
+                print "SwitchFailure"
+                s = switch_failure_handler(switch)
+                time.sleep(1)
+                continue
+
+        if flow['cid'] == cid:
+            print '%s:' % cid, i
+            i += 1
+            p = getfromQ(flow['pid'], Q)
+            two_phase_update_test(p)
+            remove(s + [flow['dl_vlan']])
+            free_pid(flow['pid'], Q, PID)
+            if i >= n:
+                t = time.time()
+                logging.debug(str( ["finish"] + [cid, t]))
+                return
+
+
+def inband_baseline(switch, controller_id, n):
+    cid = '1%s' % controller_id
+    a = 10
+    i = 1
+    while True:
+        if isinstance(switch, type(Manager().list())):
+            s = [switch[0]]
+        else:
+            s = switch
+        if i == n:
+            t = time.time()
+            logging.debug(str(["baseline"] + [controller_id, t]))
+            return
+        flow = simulator_test()
+        p = flow + ',action=1'
+        two_phase_update_test(p)
+        #print "new policy:", s
+        #time.sleep(5)
+        i += 1
+        if i >= a:
+            time.sleep(0.2)
+
+
+def upon_new_policy_test(switch, controller_id, Q, PID, n):
+    # cid = '1%d' % controller_id
+    cid = '1%s' % controller_id
+    a = 10
+    i = 1
+    while True:
+        if isinstance(switch, type(Manager().list())):
+            s = [switch[0]]
+        else:
+            s = switch
+        if i == n:
+            t = time.time()
+            logging.debug(str(["update"] + [controller_id, t]))
+        flow = simulator_test()
+        while len(PID) == 0:
+            time.sleep(0.01)
+        pid = PID.pop(0)
+        vlan = [cid + pid]
+        Q[pid] = flow + ',action=1'
+
+        #print "new policy:", s
+        push(s + vlan + [flow])
+        #time.sleep(5)
+        i += 1
+        if i >= a:
+            time.sleep(0.01)
+
+
+# simulator to generating new policy
+def simulator_test():
+    flow = policy_generator_test()
+    return flow
+
+
+def policy_generator_test():
+    no = random.randint(1, len(compare_list))
+    fields = random.sample(compare_list, no)
+    flows = []
+    dl_src_list = ['00:0A:E4:25:6B:B0','00:0A:E4:25:6B:A0','00:0A:E4:25:6B:C0','00:0A:E4:25:6B:D0']
+    dl_dst_list = ['00:0A:E4:25:6B:BA','00:0A:E4:25:6B:AA','00:0A:E4:25:6B:CA','00:0A:E4:25:6B:DA']
+    nw_src_list = ['10.10.10.10','11.11.11.11','12.12.12.12','13.13.13.13']
+    nw_dst_list = ['20.20.20.20','21.21.21.21','22.22.22.22','23.23.23.23']
+    for field in fields:
+        if field == 'metadata':
+            flows.append('metadata=0x11110000/0xffff0000')
+        if field == 'in_port':
+            flows.append('in_port=%d' % random.randint(1, 3))
+        if field == 'dl_src':
+            flows.append('dl_src=%s' % dl_src_list[random.randint(0, 3)])
+        if field == 'dl_dst':
+            flows.append('dl_dst=%s' % dl_dst_list[random.randint(0, 3)])
+        if field == 'nw_src':
+            flows.append('nw_src=%s' % nw_src_list[random.randint(0, 3)])
+        if field == 'nw_dst':
+            flows.append('nw_dst=%s' % nw_dst_list[random.randint(0, 3)])
+    flow = 'dl_type=0x0800,' + flows[0]
+    for f in flows[1:]:
+        flow1 = flow + ','
+        flow = flow1 + f
+    return flow
+
+
+def two_phase_update_test(policy):
+    # TODO: first update internal then ingress
+    try:
+        cmdline_args = ["ovs-ofctl"] + ["add-flow"] + ['1002'] + [policy]
+        # logging.debug(str( cmdline_args))
+        p = subprocess.Popen(cmdline_args, stdout=subprocess.PIPE, stderr=subprocess.PIPE)
+        p.wait()
+        res = [p.returncode, p.communicate()]
+        # logging.debug(str( res))
+        return res
+        # return subprocess.check_output(cmdline_args, stderr=subprocess.STDOUT)
+    except subprocess.CalledProcessError, e:
+        logging.warning(str( e))
+        # logging.warning(subprocess.Popen.communicate())
+        return None
+    return True
