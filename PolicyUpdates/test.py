@@ -184,10 +184,10 @@ def controller_switch_failure_test():
         p.join()
         print 'JOINED:', p, p.is_alive()
 
-main_test()
+#main_test()
 #controller_failure_test()
 #controller_switch_failure_test()
-#conflict_test()
+conflict_test()
 #policy_update_test(12)
 #simulator_test(1)
 #heartbeat_test()

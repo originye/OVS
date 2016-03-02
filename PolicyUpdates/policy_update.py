@@ -81,7 +81,8 @@ def controller_failure_detection(switch, cid, failure, failed_list):
             print controllers2
             if (set(controllers1).intersection(controllers2)) != set(controllers1):
                 print "!!!!!!!!!!!!!!!!!failed controller detected,", cid
-                print dump(s)
+                t = time.time()
+                logging.debug(str( ["controller detected at:"] + [t]))
                 for l in list(set(controllers1) - set(controllers2)):
                     failed_list.append(l)
                 print "failed_list:", failed_list
@@ -112,8 +113,6 @@ def upon_new_policy(switch, controller_id, Q, PID):
         #print "new policy:", s
         push(s + vlan + [flow])
         time.sleep(5)
-
-
 
 
 # simulator to generating new policy
@@ -581,7 +580,94 @@ def upon_new_policy_test(switch, controller_id, Q, PID, n):
         #time.sleep(5)
         i += 1
         if i >= a:
-            time.sleep(0.01)
+            time.sleep(0.1)
+
+
+def policy_update_conflict_test(switch, controller_id, Q, PID, failure, failed_list, n, test=False):
+    # cid = '%d' % controller_id
+    cid = controller_id
+    seq = Seq()
+    seq_trie = SeqTrie(seq)
+    i = 1
+    if test:
+        while True:
+            if isinstance(switch, type(Manager().list())):
+                s = [switch[0]]
+            else:
+                s = switch
+            if not failure.value:
+                while True:
+                    try:
+                        flow = pull(s)
+                        if not flow:
+                            time.sleep(0.01)
+                            #print "sleep"
+                            continue
+                        else:
+                            break
+                    except NameError:
+                        print "SwitchFailure"
+                        s = switch_failure_handler(switch)
+                        time.sleep(1)
+                        continue
+                if flow['cid'] == cid:
+                    i += 1
+                    if not conflict_detection(seq_trie, flow):
+                        p = getfromQ(flow['pid'], Q)
+                        two_phase_update_test(p)
+                        remove(s + [flow['dl_vlan']])
+                        seq_trie = policy_store_to_trie(seq, flow)
+                        free_pid(flow['pid'], Q, PID)
+                    else:
+                        p = getfromQ(flow['pid'], Q)
+                        two_phase_update_test(p)
+                        remove(s + [flow['dl_vlan']])
+                        free_pid(flow['pid'], Q, PID)
+                        print "!!removed! ", flow['dl_vlan']
+                    if i >= n:
+                        t = time.time()
+                        logging.debug(str( ["conflict finish"] + [cid, t]))
+                        return
+            else:
+                #print "main failed_list:", failed_list
+                controller_failure_handler(cid, s, failed_list)
+                time.sleep(2)
+    else:
+        while True:
+            if isinstance(switch, type(Manager().list())):
+                s = [switch[0]]
+            else:
+                s = switch
+            if not failure.value:
+                while True:
+                    try:
+                        flow = pull(s)
+                        if not flow:
+                            time.sleep(0.01)
+                            #print "sleep"
+                            continue
+                        else:
+                            break
+                    except NameError:
+                        print "SwitchFailure"
+                        s = switch_failure_handler(switch)
+                        time.sleep(1)
+                        continue
+                if flow['cid'] == cid:
+                    p = getfromQ(flow['pid'], Q)
+                    two_phase_update_test(p)
+                    remove(s + [flow['dl_vlan']])
+                    free_pid(flow['pid'], Q, PID)
+                    i += 1
+                    if i >= n:
+                        t = time.time()
+                        logging.debug(str( ["no conflict finish"] + [cid, t]))
+                        return
+
+            else:
+                #print "main failed_list:", failed_list
+                controller_failure_handler(cid, s, failed_list)
+                time.sleep(2)
 
 
 # simulator to generating new policy
@@ -594,23 +680,23 @@ def policy_generator_test():
     no = random.randint(1, len(compare_list))
     fields = random.sample(compare_list, no)
     flows = []
-    dl_src_list = ['00:0A:E4:25:6B:B0','00:0A:E4:25:6B:A0','00:0A:E4:25:6B:C0','00:0A:E4:25:6B:D0']
-    dl_dst_list = ['00:0A:E4:25:6B:BA','00:0A:E4:25:6B:AA','00:0A:E4:25:6B:CA','00:0A:E4:25:6B:DA']
-    nw_src_list = ['10.10.10.10','11.11.11.11','12.12.12.12','13.13.13.13']
-    nw_dst_list = ['20.20.20.20','21.21.21.21','22.22.22.22','23.23.23.23']
+    dl_src_list = ['00:0A:E4:25:6B:B0','00:0A:E4:25:6B:A0','00:0A:E4:25:6B:C0','00:0A:E4:25:6B:D0','00:0A:E4:25:77:D0','00:0A:E4:25:88:D0']
+    dl_dst_list = ['00:0A:E4:25:6B:BA','00:0A:E4:25:6B:AA','00:0A:E4:25:6B:CA','00:0A:E4:25:6B:DA','00:0A:E4:25:66:DA','00:0A:E4:25:88:DA']
+    nw_src_list = ['10.10.10.10','11.11.11.11','12.12.12.12','13.13.13.13','14.14.14.14','15.15.15.15']
+    nw_dst_list = ['20.20.20.20','21.21.21.21','22.22.22.22','23.23.23.23','24.24.24.24','25.25.25.25']
     for field in fields:
         if field == 'metadata':
-            flows.append('metadata=0x11110000/0xffff0000')
+            flows.append('metadata=0x111%d0000/0xffff0000' % random.randint(1, 9))
         if field == 'in_port':
-            flows.append('in_port=%d' % random.randint(1, 3))
+            flows.append('in_port=%d' % random.randint(1, 9))
         if field == 'dl_src':
-            flows.append('dl_src=%s' % dl_src_list[random.randint(0, 3)])
+            flows.append('dl_src=%s' % dl_src_list[random.randint(0, 5)])
         if field == 'dl_dst':
-            flows.append('dl_dst=%s' % dl_dst_list[random.randint(0, 3)])
+            flows.append('dl_dst=%s' % dl_dst_list[random.randint(0, 5)])
         if field == 'nw_src':
-            flows.append('nw_src=%s' % nw_src_list[random.randint(0, 3)])
+            flows.append('nw_src=%s' % nw_src_list[random.randint(0, 5)])
         if field == 'nw_dst':
-            flows.append('nw_dst=%s' % nw_dst_list[random.randint(0, 3)])
+            flows.append('nw_dst=%s' % nw_dst_list[random.randint(0, 5)])
     flow = 'dl_type=0x0800,' + flows[0]
     for f in flows[1:]:
         flow1 = flow + ','
