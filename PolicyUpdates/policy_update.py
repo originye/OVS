@@ -9,7 +9,7 @@ from multiprocessing import Manager
 import logging
 
 
-logging.basicConfig(filename='test.log', level=logging.DEBUG)
+logging.basicConfig(filename='failure_test.log', level=logging.DEBUG)
 
 last_pull = []
 #s = ["s1"]
@@ -235,7 +235,7 @@ def controller_failure_handler(cid, s, failed_list):
                 flow = s + [x]
                 remove(flow)
             unlock([cid])
-            return None
+        return None
 
 
 # if detect conflict, return True
@@ -565,7 +565,7 @@ def upon_new_policy_test(switch, controller_id, Q, PID, n):
             s = [switch[0]]
         else:
             s = switch
-        if i == n:
+        if i == n+1:
             t = time.time()
             logging.debug(str(["update"] + [controller_id, t]))
         flow = simulator_test()
@@ -580,7 +580,7 @@ def upon_new_policy_test(switch, controller_id, Q, PID, n):
         #time.sleep(5)
         i += 1
         if i >= a:
-            time.sleep(0.1)
+            time.sleep(0.01)
 
 
 def policy_update_conflict_test(switch, controller_id, Q, PID, failure, failed_list, n, test=False):
@@ -612,6 +612,9 @@ def policy_update_conflict_test(switch, controller_id, Q, PID, failure, failed_l
                         continue
                 if flow['cid'] == cid:
                     i += 1
+                    if cid == '1':
+                        t = time.time()
+                        logging.debug(str(["updating:"] + [cid] + [i, t]))
                     if not conflict_detection(seq_trie, flow):
                         p = getfromQ(flow['pid'], Q)
                         two_phase_update_test(p)
@@ -624,10 +627,10 @@ def policy_update_conflict_test(switch, controller_id, Q, PID, failure, failed_l
                         remove(s + [flow['dl_vlan']])
                         free_pid(flow['pid'], Q, PID)
                         print "!!removed! ", flow['dl_vlan']
-                    if i >= n:
+                    if i == n:
                         t = time.time()
                         logging.debug(str( ["conflict finish"] + [cid, t]))
-                        return
+
             else:
                 #print "main failed_list:", failed_list
                 controller_failure_handler(cid, s, failed_list)

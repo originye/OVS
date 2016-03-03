@@ -6,7 +6,7 @@ import logging
 import re
 import time
 
-logging.basicConfig(filename='test.log',level=logging.DEBUG)
+logging.basicConfig(filename='failure_test.log',level=logging.DEBUG)
 
 
 def synchronization_test():
@@ -161,6 +161,8 @@ def conflict_system_test(n, conflict=False):
     failure4 = manager4.Value('i', 0)
     failed_list4 = manager4.list([])
     PID4 = manager4.list(['%02d' % i for i in xrange(1, 51)])
+    t = time.time()
+    logging.debug(str( ["START"] + [t]))
     processes = []
     process1 = mp.Process(target=policy_update_conflict_test, args=(s, '1', Q1, PID1, failure1, failed_list1, n, conflict, ))
     processes.append(process1)
@@ -220,7 +222,8 @@ def controller_failure_unit_test():
     for p in processes:
         p.start()
         print 'STARTING:', p, p.is_alive()
-    time.sleep(10)
+    r = random.randint(1, 10)
+    time.sleep(r)
     print 'terminated'
     t1 = time.time()
     logging.debug(str( ["controller failed at:"] + [t1]))
@@ -238,6 +241,8 @@ def controller_failure_system_test(n):
     clear_config(s1)
     manager1 = Manager()
     manager2 = Manager()
+    manager3 = Manager()
+    manager4 = Manager()
     conflict = True
     Q1 = manager1.dict()
     failure1 = manager1.Value('i', 0)
@@ -247,6 +252,14 @@ def controller_failure_system_test(n):
     failure2 = manager2.Value('i', 0)
     failed_list2 = manager2.list([])
     PID2 = manager2.list(['%02d' % i for i in xrange(1, 51)])
+    Q3 = manager3.dict()
+    failure3 = manager3.Value('i', 0)
+    failed_list3 = manager3.list([])
+    PID3 = manager3.list(['%02d' % i for i in xrange(1, 51)])
+    Q4 = manager4.dict()
+    failure4 = manager4.Value('i', 0)
+    failed_list4 = manager4.list([])
+    PID4 = manager4.list(['%02d' % i for i in xrange(1, 51)])
     processes = []
     process1 = mp.Process(target=policy_update_conflict_test, args=(s, '1', Q1, PID1, failure1, failed_list1, n, conflict, ))
     processes.append(process1)
@@ -260,17 +273,34 @@ def controller_failure_system_test(n):
     processes.append(process4)
     process5 = mp.Process(target=upon_new_policy_test, args=(s, '2', Q2, PID2, n, ))
     processes.append(process5)
+    process6 = mp.Process(target=policy_update_conflict_test, args=(s, '3', Q3, PID3, failure3, failed_list3, n, conflict, ))
+    processes.append(process6)
+    process7 = mp.Process(target=controller_failure_detection, args=(s, '3', failure3, failed_list3,))
+    processes.append(process7)
+    process8 = mp.Process(target=upon_new_policy_test, args=(s, '3', Q3, PID3, n, ))
+    processes.append(process8)
+    process9 = mp.Process(target=policy_update_conflict_test, args=(s, '4', Q4, PID4, failure4, failed_list4, n, conflict, ))
+    processes.append(process9)
+    process10 = mp.Process(target=controller_failure_detection, args=(s, '4', failure4, failed_list4,))
+    processes.append(process10)
+    process11 = mp.Process(target=upon_new_policy_test, args=(s, '4', Q4, PID4, n, ))
+    processes.append(process11)
+# Run processes
+# Run processes
 # Run processes
     for p in processes:
         p.start()
         print 'STARTING:', p, p.is_alive()
-    time.sleep(10)
+    time.sleep(20)
     print 'terminated'
     processes[3].terminate()
     processes[4].terminate()
+    processes[6].terminate()
+    processes[7].terminate()
     print 'sleeping'
-    time.sleep(5)
+    time.sleep(1)
     processes[5].terminate()
+    processes[8].terminate()
     print 'terminated 5'
     time.sleep(2)
 
@@ -287,4 +317,5 @@ if __name__ == '__main__':
    # synchronization_baseline_test()
     #conflict_unit_test()
     #conflict_system_test(500, True)
-    controller_failure_unit_test()
+    #controller_failure_unit_test()
+    controller_failure_system_test(1000)
