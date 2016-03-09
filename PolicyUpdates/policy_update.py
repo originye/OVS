@@ -532,6 +532,93 @@ def inband(switch, controller_id, Q, PID, n):
                 return
 
 
+def inband_bundle(switch, controller_id, Q, PID, n):
+    # cid = '%d' % controller_id
+    cid = controller_id
+    i = 0
+    seq = Seq()
+    seq_trie = SeqTrie(seq)
+    while True:
+        if isinstance(switch, type(Manager().list())):
+            s = [switch[0]]
+        else:
+            s = switch
+        while True:
+            try:
+                flow = pull(s)
+                if not flow:
+                    time.sleep(0.01)
+                    print "sleep"
+                    continue
+                else:
+                    break
+            except NameError:
+                print "SwitchFailure"
+                s = switch_failure_handler(switch)
+                time.sleep(1)
+                continue
+        flows =[]
+        if flow['cid'] == cid:
+            print '%s:' % cid, i
+            i += 1
+            p = getfromQ(flow['pid'], Q)
+            flows.append(['add-flow ' + p])
+            flows.append(['add-flow ' + 'metadata=1,action=3'])
+            flows.append(['add-flow ' + 'metadata=2,action=3'])
+            flows.append(['add-flow ' + 'metadata=3,action=3'])
+            flows.append(['add-flow ' + 'metadata=4,action=3'])
+            flows.append(['add-flow ' + 'metadata=5,action=3'])
+            flows.append(['add-flow ' + 'metadata=6,action=3'])
+            flows.append(['add-flow ' + 'metadata=7,action=3'])
+            flows.append(['add-flow ' + 'metadata=8,action=3'])
+            flows.append(['add-flow ' + 'metadata=9,action=3'])
+            send_as_bundle('1002', flows)
+            #two_phase_update_test(p)
+            remove(s + [flow['dl_vlan']])
+            free_pid(flow['pid'], Q, PID)
+            if i >= n:
+                t = time.time()
+                logging.debug(str( ["finish"] + [cid, t]))
+                return
+
+
+def inband_baseline_bundle(switch, controller_id, n):
+    cid = '1%s' % controller_id
+    a = 10
+    i = 1
+    while True:
+        if isinstance(switch, type(Manager().list())):
+            s = [switch[0]]
+        else:
+            s = switch
+        if i == n:
+            t = time.time()
+            logging.debug(str(["baseline"] + [controller_id, t]))
+            return
+
+        flow = simulator_test()
+        p = "add-flow " + flow + ',action=1'
+        #print flows
+        flows = []
+        flows.append(['add-flow ' + p])
+        flows.append(['add-flow ' + 'metadata=1,action=3'])
+        flows.append(['add-flow ' + 'metadata=2,action=3'])
+        flows.append(['add-flow ' + 'metadata=3,action=3'])
+        flows.append(['add-flow ' + 'metadata=4,action=3'])
+        flows.append(['add-flow ' + 'metadata=5,action=3'])
+        flows.append(['add-flow ' + 'metadata=6,action=3'])
+        flows.append(['add-flow ' + 'metadata=7,action=3'])
+        flows.append(['add-flow ' + 'metadata=8,action=3'])
+        flows.append(['add-flow ' + 'metadata=9,action=3'])
+        #two_phase_update_test(p)
+        send_as_bundle('1002', flows)
+        #print "new policy:", s
+        #time.sleep(5)
+        i += 1
+        if i >= a:
+            time.sleep(0.1)
+
+
 def inband_baseline(switch, controller_id, n):
     cid = '1%s' % controller_id
     a = 10
@@ -545,14 +632,17 @@ def inband_baseline(switch, controller_id, n):
             t = time.time()
             logging.debug(str(["baseline"] + [controller_id, t]))
             return
+
         flow = simulator_test()
-        p = flow + ',action=1'
+        p = "add-flow " + flow + ',action=1'
+        #print flows
         two_phase_update_test(p)
+        #send_as_bundle('1002', flows)
         #print "new policy:", s
         #time.sleep(5)
         i += 1
         if i >= a:
-            time.sleep(0.2)
+            time.sleep(0.1)
 
 
 def upon_new_policy_test(switch, controller_id, Q, PID, n):
@@ -574,7 +664,6 @@ def upon_new_policy_test(switch, controller_id, Q, PID, n):
         pid = PID.pop(0)
         vlan = [cid + pid]
         Q[pid] = flow + ',action=1'
-
         #print "new policy:", s
         push(s + vlan + [flow])
         #time.sleep(5)
@@ -723,3 +812,33 @@ def two_phase_update_test(policy):
         # logging.warning(subprocess.Popen.communicate())
         return None
     return True
+
+TEMP_FILE = r"/tmp/bundle.txt"
+
+
+def OVS_OFCTL(args):
+    try:
+        cmdline_args = ["ovs-ofctl"] + args + ["-O", "OpenFlow14"]
+        #logging.debug(str( cmdline_args))
+        p = subprocess.Popen(cmdline_args,stdout=subprocess.PIPE, stderr=subprocess.PIPE)
+        p.wait()
+        res = [p.returncode,p.communicate()]
+        #logging.debug(str( res))
+        return res
+        #return subprocess.check_output(cmdline_args, stderr=subprocess.STDOUT)
+    except subprocess.CalledProcessError, e:
+        logging.warning(str( e))
+        #logging.warning(subprocess.Popen.communicate())
+        return None
+
+
+def fix_command_for_bundle(cmd):
+    c = cmd[0]
+    cmd[0] = c.replace("add-flows","add").replace("add-flow","add").replace("del-flows","delete").replace("del-flow","delete").replace("mod-flows","modify").replace("mod-flow","modify")
+    return [cmd[0]] + cmd[2:]
+
+
+def send_as_bundle(datapath,msgs):
+    msgs = map(fix_command_for_bundle, msgs)
+    file(TEMP_FILE,"w").write("\n".join(map(" ".join,msgs))+"\n")
+    return OVS_OFCTL(["--bundle","add-flows",datapath,TEMP_FILE])
