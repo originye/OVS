@@ -563,15 +563,6 @@ def inband_bundle(switch, controller_id, Q, PID, n):
             i += 1
             p = getfromQ(flow['pid'], Q)
             flows.append(['add-flow ' + p])
-            flows.append(['add-flow ' + 'metadata=1,action=3'])
-            flows.append(['add-flow ' + 'metadata=2,action=3'])
-            flows.append(['add-flow ' + 'metadata=3,action=3'])
-            flows.append(['add-flow ' + 'metadata=4,action=3'])
-            flows.append(['add-flow ' + 'metadata=5,action=3'])
-            flows.append(['add-flow ' + 'metadata=6,action=3'])
-            flows.append(['add-flow ' + 'metadata=7,action=3'])
-            flows.append(['add-flow ' + 'metadata=8,action=3'])
-            flows.append(['add-flow ' + 'metadata=9,action=3'])
             send_as_bundle('1002', flows)
             #two_phase_update_test(p)
             remove(s + [flow['dl_vlan']])
@@ -601,15 +592,6 @@ def inband_baseline_bundle(switch, controller_id, n):
         #print flows
         flows = []
         flows.append(['add-flow ' + p])
-        flows.append(['add-flow ' + 'metadata=1,action=3'])
-        flows.append(['add-flow ' + 'metadata=2,action=3'])
-        flows.append(['add-flow ' + 'metadata=3,action=3'])
-        flows.append(['add-flow ' + 'metadata=4,action=3'])
-        flows.append(['add-flow ' + 'metadata=5,action=3'])
-        flows.append(['add-flow ' + 'metadata=6,action=3'])
-        flows.append(['add-flow ' + 'metadata=7,action=3'])
-        flows.append(['add-flow ' + 'metadata=8,action=3'])
-        flows.append(['add-flow ' + 'metadata=9,action=3'])
         #two_phase_update_test(p)
         send_as_bundle('1002', flows)
         #print "new policy:", s
@@ -772,23 +754,23 @@ def policy_generator_test():
     no = random.randint(1, len(compare_list))
     fields = random.sample(compare_list, no)
     flows = []
-    dl_src_list = ['00:0A:E4:25:6B:B0','00:0A:E4:25:6B:A0','00:0A:E4:25:6B:C0','00:0A:E4:25:6B:D0','00:0A:E4:25:77:D0','00:0A:E4:25:88:D0']
-    dl_dst_list = ['00:0A:E4:25:6B:BA','00:0A:E4:25:6B:AA','00:0A:E4:25:6B:CA','00:0A:E4:25:6B:DA','00:0A:E4:25:66:DA','00:0A:E4:25:88:DA']
-    nw_src_list = ['10.10.10.10','11.11.11.11','12.12.12.12','13.13.13.13','14.14.14.14','15.15.15.15']
-    nw_dst_list = ['20.20.20.20','21.21.21.21','22.22.22.22','23.23.23.23','24.24.24.24','25.25.25.25']
+    dl_src_list = ['00:0A:E4:25:6B:B0','00:0A:E4:25:6B:A0','00:0A:E4:25:6B:C0','00:0A:E4:25:6B:D0','00:0A:E4:25:77:D0','00:0A:E4:25:88:D0','00:0A:E4:25:6B:BA','00:0A:E4:25:6B:AA','00:0A:E4:25:6B:CA','00:0A:E4:25:6B:DA','00:0A:E4:25:66:DA','00:0A:E4:25:88:DA']
+    dl_dst_list = ['00:0A:E4:25:6B:BA','00:0A:E4:25:6B:AA','00:0A:E4:25:6B:CA','00:0A:E4:25:6B:DA','00:0A:E4:25:66:DA','00:0A:E4:25:88:DA','00:0A:E4:25:6B:B0','00:0A:E4:25:6B:A0','00:0A:E4:25:6B:C0','00:0A:E4:25:6B:D0','00:0A:E4:25:77:D0','00:0A:E4:25:88:D0']
+    nw_src_list = ['10.10.10.10','11.11.11.11','12.12.12.12','13.13.13.13','14.14.14.14','15.15.15.15','20.20.20.20','21.21.21.21','22.22.22.22','23.23.23.23','24.24.24.24','25.25.25.25']
+    nw_dst_list = ['20.20.20.20','21.21.21.21','22.22.22.22','23.23.23.23','24.24.24.24','25.25.25.25','10.10.10.10','11.11.11.11','12.12.12.12','13.13.13.13','14.14.14.14','15.15.15.15']
     for field in fields:
         if field == 'metadata':
-            flows.append('metadata=0x111%d0000/0xffff0000' % random.randint(1, 9))
+            flows.append('metadata=0x11%d0000/0xffff0000' % random.randint(1, 20))
         if field == 'in_port':
             flows.append('in_port=%d' % random.randint(1, 9))
         if field == 'dl_src':
-            flows.append('dl_src=%s' % dl_src_list[random.randint(0, 5)])
+            flows.append('dl_src=%s' % dl_src_list[random.randint(0, 10)])
         if field == 'dl_dst':
-            flows.append('dl_dst=%s' % dl_dst_list[random.randint(0, 5)])
+            flows.append('dl_dst=%s' % dl_dst_list[random.randint(0, 10)])
         if field == 'nw_src':
-            flows.append('nw_src=%s' % nw_src_list[random.randint(0, 5)])
+            flows.append('nw_src=%s' % nw_src_list[random.randint(0, 10)])
         if field == 'nw_dst':
-            flows.append('nw_dst=%s' % nw_dst_list[random.randint(0, 5)])
+            flows.append('nw_dst=%s' % nw_dst_list[random.randint(0, 10)])
     flow = 'dl_type=0x0800,' + flows[0]
     for f in flows[1:]:
         flow1 = flow + ','

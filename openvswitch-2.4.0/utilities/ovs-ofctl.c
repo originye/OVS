@@ -1531,6 +1531,38 @@ get_controllers(char *string, char *magic)
 }
 
 static char *
+get_id(char *string, char *magic)
+{
+	int n = 0;
+	n = count_flows(string, magic);
+	if (n > 0){
+		char *pch = strstr(string, magic);
+		char *pch1 = strstr(string,"metadata");
+		char *pch2 = strstr(string,"metadata");
+		int c_length = 11;
+		int p_length = 2;
+		char *id = malloc(n*p_length+1);
+		for(int i=0;i<n;i++){
+		    while( pch1 < pch ){
+		    	pch2 = pch1;
+		    	pch1 = strstr(pch1+1,"metadata");
+		    }
+		    id[p_length*i] = pch2[c_length];
+		    id[p_length*i+1] = pch2[c_length+1];
+		    pch1 = strstr(pch+1,"metadata");
+		    pch2 = strstr(pch+1,"metadata");
+		    pch = strstr(pch+1,magic);
+		}
+		id[n*p_length] = NULL;
+		return id;
+
+	}else{
+		char *id = "";
+		return id;
+	}
+}
+
+static char *
 ofctl_pull_(int argc, char *argv[], bool aggregate)
 {
 	bool error;
@@ -1728,44 +1760,78 @@ ofctl_pull(struct ovs_cmdl_context *ctx)
 
 }
 
+static void
+ofctl_stamp(struct ovs_cmdl_context *ctx)
+{
+	srand(time(NULL));
+	int r = rand()%9;
+	char *tmp = ctx->argv[2];
+	printf("%s\n", ctx->argv[2]);
+	char *a = tmp;
+	char *tmp1 = "table=242,metadata=0x";
+	char *tmp2 = ",action=write_metadata:0xeeaffc0f/0xffffffff";
+	char *concatString =  malloc(strlen(a)+strlen(tmp1)+strlen(tmp2)+2);
+	strcpy(concatString, tmp1);
+	strcat(concatString, a);
+	strcat(concatString, tmp2);
+	printf("%s\n", concatString);
+	ofctl_flow_mod_2(ctx->argc, ctx->argv, concatString, OFPFC_ADD);
+
+}
 
 static char *
-gen_ran_inport(int r)
+ofctl_check(int argc, char *argv[], bool aggregate)
 {
-	char *inport1 = ",in_port=1";
-	char *inport2 = ",in_port=2";
-	char *inport3 = ",in_port=3";
-	char *inport4 = ",in_port=4";
-	char *inport5 = ",in_port=5";
-	char *inport6 = ",in_port=6";
-	char *inport7 = ",in_port=7";
-	char *inport8 = ",in_port=8";
-	char *inport9 = ",in_port=9";
-	char *inport10 = ",in_port=10";
-	switch(r){
-	case 1:
-		return inport1;
-	case 2:
-		return inport2;
-	case 3:
-		return inport3;
-	case 4:
-		return inport4;
-	case 5:
-		return inport5;
-	case 6:
-		return inport6;
-	case 7:
-		return inport7;
-	case 8:
-		return inport8;
-	case 9:
-		return inport9;
-	case 10:
-		return inport10;
-	default:
-		return inport1;
+	struct ofpbuf *request;
+	struct vconn *vconn;
+	char *magic = "action=write_metadata:0xeeaffc0f/0xffffffff";
+	char *s[3];
+	s[0] = argv[0];
+	s[1] = argv[1];
+	s[2] = "table=242";
+	argc = 3;
+	vconn = prepare_dump_flows(argc, s, aggregate, &request);
+	const struct ofp_header *request_oh = request->data;
+	ovs_be32 send_xid = request_oh->xid;
+	enum ofpraw request_raw;
+	enum ofpraw reply_raw;
+	bool done = false;
+	char *pid;
+	ofpraw_decode_partial(&request_raw, request->data, request->size);
+	reply_raw = ofpraw_stats_request_to_reply(request_raw,
+			request_oh->version);
+
+	send_openflow_buffer(vconn, request);
+	while (!done) {
+		ovs_be32 recv_xid;
+		struct ofpbuf *reply;
+
+		run(vconn_recv_block(vconn, &reply), "OpenFlow packet receive failed");
+		recv_xid = ((struct ofp_header *) reply->data)->xid;
+		if (send_xid == recv_xid) {
+			enum ofpraw raw;
+			char *string;
+			string = ofp_to_string(reply->data, reply->size, verbosity + 1);
+			pid= get_id(string, magic);
+			ofpraw_decode(&raw, reply->data);
+			if (ofptype_from_ofpraw(raw) == OFPTYPE_ERROR) {
+				done = true;
+			} else if (raw == reply_raw) {
+				done = !ofpmp_more(reply->data);
+			} else {
+				ovs_fatal(0, "received bad reply: %s",
+						ofp_to_string(reply->data, reply->size,
+								verbosity + 1));
+			}
+		} else {
+			pid = "";
+			VLOG_DBG("received reply with xid %08"PRIx32" "
+					"!= expected %08"PRIx32, recv_xid, send_xid);
+		}
+		ofpbuf_delete(reply);
 	}
+	vconn_close(vconn);
+	return pid;
 }
 
 
@@ -1778,13 +1844,10 @@ static void
 ofctl_heartbeat(struct ovs_cmdl_context *ctx)
 {
 	srand(time(NULL));
-	int r = rand()%9;
 	char *tmp = ctx->argv[2];
 	printf("%s\n", ctx->argv[2]);
 	char *a = tmp;
-	//char *tmp1 = "table=241,idle_timeout=30,metadata=0x";
 	char *tmp1 = "table=241,hard_timeout=30,metadata=0x";
-	//char *inport = gen_ran_inport(r);
 	char *tmp2 = ",action=write_metadata:0xccaffc0f/0xffffffff";
 	char *concatString =  malloc(strlen(a)+strlen(tmp1)+strlen(tmp2)+2);
 	strcpy(concatString, tmp1);
@@ -1796,7 +1859,7 @@ ofctl_heartbeat(struct ovs_cmdl_context *ctx)
 }
 
 
-//TODO not return whole flows, but only return controller ids
+// return controller ids
 static char *
 ofctl_check_alive_controller_(int argc, char *argv[], bool aggregate)
 {
@@ -4243,7 +4306,8 @@ static const struct ovs_cmdl_command all_commands[] = {
 	{ "remove", "switch id",2, 2, ofctl_remove },
 	{ "heart-beat", "switch id",2, 2, ofctl_heartbeat },
 	{ "check-alive-controller", "switch",1, 1, ofctl_check_alive_controller },
-	/*TODO add stamp and check functions*/
+	{ "stamp", "switch",1, 2, ofctl_stamp },
+	{ "check", "switch",1, 2, ofctl_check },
     { NULL, NULL, 0, 0, NULL },
 };
 

@@ -11,7 +11,7 @@ import logging
 import os
 import unittest
 import pexpect
-
+from pox import POX
 logging.basicConfig(level=logging.DEBUG)
 logger = logging.getLogger( __name__ )
 
@@ -148,6 +148,8 @@ def pingTest(net):
     net.pingAll()
 
 
+
+
 def createTopo():
     logging.debug("LV1 Create HugeTopo")
     topo = HugeTopo()
@@ -162,8 +164,7 @@ def createTopo():
     c2 = Controller('c2', port=6635)
     c3 = Controller('c3', port=6636)
     c5 = RemoteController('c2', ip='127.0.0.1')
-    net = Mininet(topo=topo, link=TCLink, controller=None)
-    #net.addController('controller', controller=RemoteController, ip=CONTROLLER_IP, port=CONTROLLER_PORT)
+    net = Mininet(topo=topo, link=TCLink, controller=POX)
     for c in [c0, c1, c2, c3 ]:
         net.addController(c)
     net.start()
